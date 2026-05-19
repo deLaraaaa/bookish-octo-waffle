@@ -5,10 +5,12 @@ const express = require('express');
 const cors = require('cors');
 const db = require('./db');
 
+const httpLogs = require('./http_logs.js');
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(httpLogs());
 
 app.get('/health', async (_req, res) => {
   const r = await db.query('select now() as now');

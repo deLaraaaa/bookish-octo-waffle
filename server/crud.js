@@ -4,18 +4,20 @@
 const db = require('./db');
 
 /**
- * Hardening:
- * - Valores sempre via parâmetros ($1..$n)
- * - Identificadores (tabela/coluna) via allowlist + validação rígida
- * - Sem SQL arbitrário vindo do usuário
- * - UPDATE/DELETE exigem WHERE
+ * Security goals:
+ * - No SQL injection: values are always parameterized ($1..$n)
+ * - Table/column names are validated against a strict allowlist (SCHEMA)
+ * - Only a small set of operators is allowed in filters
+ * - UPDATE/DELETE require WHERE
+ * - All CRUD methods require a `user` argument
+ * - Supports legacy-like filters: { AndFilters: [[col, op, value], ...] }
  */
 
 const IDENT_RE = /^[a-z_][a-z0-9_]*$/;
 
 /**
- * Ajuste esta allowlist para as tabelas/colunas reais do seu schema.
- * Quanto mais específica, mais segura.
+ * Tight allowlist of tables/columns.
+ * Keep this synced with your schema.sql.
  */
 const SCHEMA = Object.freeze({
   role: ['id', 'uuid', 'name', 'insert_date', 'active'],
@@ -45,14 +47,7 @@ const SCHEMA = Object.freeze({
     'institution_id'
   ],
 
-  signature: [
-    'id',
-    'uuid',
-    'status',
-    'signed_date',
-    'insert_date',
-    'active'
-  ],
+  signature: ['id', 'uuid', 'status', 'signed_date', 'insert_date', 'active'],
 
   file_resource: [
     'id',
@@ -109,6 +104,19 @@ const SCHEMA = Object.freeze({
   seal: ['id', 'uuid', 'name', 'create_date', 'active', 'file_resource_id']
 });
 
+const PUBLIC_READ = Object.freeze({
+  account: Object.freeze({
+    select: Object.freeze(['id', 'uuid', 'name', 'status', 'active', 'role_id', 'institution_id']),
+    whereColumns: Object.freeze(['uuid']),
+    allowOps: Object.freeze(['='])
+  })
+});
+
+function requireUser(user, fnName) {
+  if (!user) throw new Error(`${fnName}: user is required`);
+  return user;
+}
+
 function assertIdent(name, kind) {
   if (typeof name !== 'string' || !IDENT_RE.test(name)) {
     throw new Error(`Invalid ${kind}: ${String(name)}`);
@@ -139,17 +147,73 @@ function assertColumns(table, cols) {
   return cols.map((c) => assertColumn(table, c));
 }
 
-/**
- * WHERE builder com operadores permitidos.
- * Uso:
- * where: {
- *   status: 'active',
- *   due_date: { op: 'is_null' },
- *   city: { op: 'ilike', value: '%join%' },
- *   id: { op: 'in', value: [1,2,3] }
- * }
- */
-const OPS = new Set(['=', '!=', '<', '<=', '>', '>=', 'like', 'ilike', 'in', 'is_null', 'is_not_null']);
+const OPS = new Set([
+  '=',
+  '!=',
+  '<',
+  '<=',
+  '>',
+  '>=',
+  'like',
+  'ilike',
+  'in',
+  'is_null',
+  'is_not_null'
+]);
+
+function parseAndFilters(table, filterObj) {
+  if (!filterObj) return {};
+
+  const andFilters = filterObj.AndFilters || filterObj.andFilters;
+  if (!andFilters) return {};
+
+  if (!Array.isArray(andFilters)) throw new Error('AndFilters must be an array');
+
+  const where = {};
+  for (const item of andFilters) {
+    if (!Array.isArray(item) || item.length < 2) {
+      throw new Error(`Invalid AndFilters item: ${JSON.stringify(item)}`);
+    }
+
+    const rawCol = item[0];
+    const rawOp = item[1];
+    const rawVal = item.length >= 3 ? item[2] : undefined;
+
+    const col = assertColumn(table, String(rawCol));
+
+    const opRaw = String(rawOp || '=').trim().toLowerCase();
+
+    const op =
+      opRaw === 'in' ? 'in' :
+      opRaw === '=' ? '=' :
+      opRaw === '!=' ? '!=' :
+      opRaw === '<' ? '<' :
+      opRaw === '<=' ? '<=' :
+      opRaw === '>' ? '>' :
+      opRaw === '>=' ? '>=' :
+      opRaw === 'like' ? 'like' :
+      opRaw === 'ilike' ? 'ilike' :
+      opRaw === 'is null' ? 'is_null' :
+      opRaw === 'is not null' ? 'is_not_null' :
+      opRaw;
+
+    if (!OPS.has(op)) throw new Error(`Operator not allowed: ${op} (${col})`);
+
+    if (op === '=') {
+      where[col] = rawVal;
+      continue;
+    }
+
+    if (op === 'is_null' || op === 'is_not_null') {
+      where[col] = { op };
+      continue;
+    }
+
+    where[col] = { op, value: rawVal };
+  }
+
+  return where;
+}
 
 function buildWhere(table, where = {}, startIndex = 1) {
   const clauses = [];
@@ -159,14 +223,13 @@ function buildWhere(table, where = {}, startIndex = 1) {
   for (const [rawCol, cond] of Object.entries(where || {})) {
     const col = assertColumn(table, rawCol);
 
-    // Shorthand: { col: value }
+    if (cond === undefined) continue;
+
     if (cond === null) {
       clauses.push(`${col} IS NULL`);
       continue;
     }
-    if (cond === undefined) continue;
 
-    // Shorthand: { col: value }
     if (typeof cond !== 'object' || Array.isArray(cond)) {
       clauses.push(`${col} = $${idx}`);
       values.push(cond);
@@ -181,10 +244,12 @@ function buildWhere(table, where = {}, startIndex = 1) {
       clauses.push(`${col} IS NULL`);
       continue;
     }
+
     if (op === 'is_not_null') {
       clauses.push(`${col} IS NOT NULL`);
       continue;
     }
+
     if (op === 'in') {
       const arr = cond.value;
       if (!Array.isArray(arr) || arr.length === 0) {
@@ -196,7 +261,6 @@ function buildWhere(table, where = {}, startIndex = 1) {
       continue;
     }
 
-    // Comparisons / like / ilike
     const sqlOp =
       op === 'like' ? 'LIKE' :
       op === 'ilike' ? 'ILIKE' :
@@ -240,7 +304,17 @@ function assertLimitOffset(n, label) {
   return v;
 }
 
-async function create(table, data, opts = {}) {
+function normalizeWhere(table, opts, filters) {
+  const whereFromOpts = opts?.where || opts?.filters;
+  if (whereFromOpts) return whereFromOpts;
+
+  const whereFromAnd = parseAndFilters(table, filters);
+  return whereFromAnd || {};
+}
+
+// ------------------------- CRUD -------------------------
+async function create(table, data, opts = {}, user) {
+  requireUser(user, 'create');
   table = assertTable(table);
 
   const keys = Object.keys(data || {}).filter((k) => data[k] !== undefined);
@@ -250,7 +324,8 @@ async function create(table, data, opts = {}) {
   const values = cols.map((c) => data[c]);
   const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
 
-  const returningCols = opts.returning === false ? null : (opts.returning ? assertColumns(table, opts.returning) : ['*']);
+  const returningCols =
+    opts.returning === false ? null : (opts.returning ? assertColumns(table, opts.returning) : ['*']);
   const returningSql = returningCols ? `RETURNING ${returningCols.join(', ')}` : '';
 
   const sql = `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders}) ${returningSql}`.trim();
@@ -259,12 +334,13 @@ async function create(table, data, opts = {}) {
   return returningCols ? r.rows[0] : { rowCount: r.rowCount };
 }
 
-async function read(table, opts = {}) {
+async function read(table, opts = {}, filters, user) {
+  requireUser(user, 'read');
   table = assertTable(table);
 
   const selectCols = opts.select ? assertColumns(table, opts.select) : ['*'];
 
-  const whereInput = opts.where || opts.filters || {};
+  const whereInput = normalizeWhere(table, opts, filters);
   const where = buildWhere(table, whereInput, 1);
 
   const orderBy = buildOrderBy(table, opts.orderBy);
@@ -281,12 +357,65 @@ async function read(table, opts = {}) {
   return r.rows[0] || null;
 }
 
-async function list(table, opts = {}) {
+async function readPublic(table, opts = {}, filters) {
+  table = assertTable(table);
+
+  const policy = PUBLIC_READ[table];
+  if (!policy) throw new Error(`readPublic: table not allowed: ${table}`);
+
+  const selectCols = assertColumns(table, policy.select);
+
+  const rawWhere = normalizeWhere(table, opts, filters);
+
+  const whereKeys = Object.keys(rawWhere || {});
+  if (whereKeys.length === 0) throw new Error('readPublicExceptional: where is required');
+  if (whereKeys.some((k) => !policy.whereColumns.includes(k))) {
+    throw new Error(`readPublicExceptional: invalid where columns: ${whereKeys.join(', ')}`);
+  }
+
+  const strictWhere = {};
+  for (const k of policy.whereColumns) {
+    if (!Object.prototype.hasOwnProperty.call(rawWhere, k)) continue;
+
+    const v = rawWhere[k];
+
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      const op = String(v.op || '').toLowerCase();
+      throw new Error(`readPublicExceptional: operator not allowed for ${k}: ${op}`);
+    }
+
+    if (v === undefined || v === null) {
+      throw new Error(`readPublicExceptional: invalid value for ${k}`);
+    }
+
+    strictWhere[k] = v;
+  }
+
+  if (Object.keys(strictWhere).length === 0) {
+    throw new Error('readPublicExceptional: valid where is required');
+  }
+
+  const where = buildWhere(table, strictWhere, 1);
+
+  const sql = `
+    SELECT ${selectCols.join(', ')}
+    FROM ${table}
+    ${where.text}
+    ORDER BY id ASC
+    LIMIT 1
+  `.trim();
+
+  const r = await db.query(sql, where.values);
+  return r.rows[0] || null;
+}
+
+async function list(table, opts = {}, filters, user) {
+  requireUser(user, 'list');
   table = assertTable(table);
 
   const selectCols = opts.select ? assertColumns(table, opts.select) : ['*'];
 
-  const whereInput = opts.where || opts.filters || {};
+  const whereInput = normalizeWhere(table, opts, filters);
   const where = buildWhere(table, whereInput, 1);
 
   const orderBy = buildOrderBy(table, opts.orderBy);
@@ -307,10 +436,12 @@ async function list(table, opts = {}) {
   return r.rows;
 }
 
-async function update(table, patch, opts = {}) {
+async function update(table, patch, opts = {}, user) {
+  requireUser(user, 'update');
   table = assertTable(table);
 
-  if (!opts.where || Object.keys(opts.where).length === 0) {
+  const whereInput = opts.where || opts.filters;
+  if (!whereInput || Object.keys(whereInput).length === 0) {
     throw new Error('update: opts.where is required');
   }
 
@@ -321,9 +452,10 @@ async function update(table, patch, opts = {}) {
   const setSql = cols.map((c, i) => `${c} = $${i + 1}`).join(', ');
   const setValues = cols.map((c) => patch[c]);
 
-  const where = buildWhere(table, opts.where, cols.length + 1);
+  const where = buildWhere(table, whereInput, cols.length + 1);
 
-  const returningCols = opts.returning === false ? null : (opts.returning ? assertColumns(table, opts.returning) : ['*']);
+  const returningCols =
+    opts.returning === false ? null : (opts.returning ? assertColumns(table, opts.returning) : ['*']);
   const returningSql = returningCols ? `RETURNING ${returningCols.join(', ')}` : '';
 
   const sql = `
@@ -337,16 +469,19 @@ async function update(table, patch, opts = {}) {
   return returningCols ? r.rows : { rowCount: r.rowCount };
 }
 
-async function remove(table, opts = {}) {
+async function remove(table, opts = {}, user) {
+  requireUser(user, 'remove');
   table = assertTable(table);
 
-  if (!opts.where || Object.keys(opts.where).length === 0) {
+  const whereInput = opts.where || opts.filters;
+  if (!whereInput || Object.keys(whereInput).length === 0) {
     throw new Error('remove: opts.where is required');
   }
 
-  const where = buildWhere(table, opts.where, 1);
+  const where = buildWhere(table, whereInput, 1);
 
-  const returningCols = opts.returning === false ? null : (opts.returning ? assertColumns(table, opts.returning) : ['*']);
+  const returningCols =
+    opts.returning === false ? null : (opts.returning ? assertColumns(table, opts.returning) : ['*']);
   const returningSql = returningCols ? `RETURNING ${returningCols.join(', ')}` : '';
 
   const sql = `
@@ -359,7 +494,8 @@ async function remove(table, opts = {}) {
   return returningCols ? r.rows : { rowCount: r.rowCount };
 }
 
-async function upcreate(table, data, conflict, opts = {}) {
+async function upcreate(table, data, conflict, opts = {}, user) {
+  requireUser(user, 'upcreate');
   table = assertTable(table);
 
   const keys = Object.keys(data || {}).filter((k) => data[k] !== undefined);
@@ -385,7 +521,8 @@ async function upcreate(table, data, conflict, opts = {}) {
       ? 'DO NOTHING'
       : `DO UPDATE SET ${updateColumns.map((c) => `${c} = EXCLUDED.${c}`).join(', ')}`;
 
-  const returningCols = opts.returning === false ? null : (opts.returning ? assertColumns(table, opts.returning) : ['*']);
+  const returningCols =
+    opts.returning === false ? null : (opts.returning ? assertColumns(table, opts.returning) : ['*']);
   const returningSql = returningCols ? `RETURNING ${returningCols.join(', ')}` : '';
 
   const sql = `
@@ -404,6 +541,7 @@ module.exports = {
   SCHEMA,
   create,
   read,
+  readPublic,
   list,
   update,
   remove,
