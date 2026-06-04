@@ -33,14 +33,14 @@ Cliente (React)  ──HTTP──>  API (Node/Express)  ──pg──>  Postgre
 A camada de acesso a dados ([server/crud.js](server/crud.js)) implementa operações CRUD genéricas com as seguintes restrições de segurança:
 
 - valores sempre parametrizados (`$1..$n`), evitando injeção de SQL;
-- tabelas e colunas validadas contra um allowlist sincronizado com o schema;
+- tabelas e colunas validadas contra um allowlist;
 - conjunto restrito de operadores em filtros;
 - `UPDATE` e `DELETE` obrigatoriamente com cláusula `WHERE`;
 - exigência de identificação de usuário em todas as operações, base para o log de auditoria.
 
 ## 3. Modelo de Dados
 
-O esquema relacional está definido em [server/schema.sql](server/schema.sql). As principais entidades são:
+As principais entidades são:
 
 | Tabela | Descrição |
 |---|---|
@@ -64,37 +64,7 @@ O ciclo de vida dos registros é controlado por tipos enumerados (`enterprise_st
 - **Infraestrutura:** Docker e Docker Compose
 - **Observabilidade:** Grafana, Loki e Promtail
 
-## 5. Execução
-
-**Pré-requisitos:** Docker e Docker Compose; Node.js 20+ para o frontend em modo de desenvolvimento.
-
-Defina as variáveis de ambiente em um arquivo `.env` na raiz:
-
-```env
-DATABASE_URL=postgres://postgres:postgres@localhost:5433/tcc
-PORT=4000
-```
-
-Suba a infraestrutura e aplique o schema:
-
-```bash
-docker compose up -d
-docker exec -i tcc-postgres psql -U postgres -d tcc < server/schema.sql
-```
-
-Serviços disponíveis: API em `http://localhost:4000`, PostgreSQL em `localhost:5433` e Grafana em `http://localhost:3001`. Para verificar a API:
-
-```bash
-curl http://localhost:4000/health
-```
-
-Para executar o frontend em modo de desenvolvimento:
-
-```bash
-cd client && npm install && npm start
-```
-
-## 6. Estrutura do Repositório
+## 5. Estrutura do Repositório
 
 ```
 client/                # Frontend React
@@ -105,13 +75,12 @@ server/                # Backend Node/Express
   db.js                # Pool de conexão PostgreSQL
   http_logs.js         # Middleware de logging de requisições
   logger.js            # Logger estruturado (JSON)
-  schema.sql           # Definição do banco de dados
 ops/                   # Configuração de Loki, Promtail e Grafana
 docker-compose.yml     # Orquestração dos serviços
 Dockerfile             # Imagem da API
 ```
 
-## 7. Estado Atual
+## 6. Estado Atual
 
 Concluído: modelagem do banco de dados, camada de acesso a dados, API base com logging e a infraestrutura de execução e observabilidade. Em desenvolvimento: endpoints de upload e substituição de variáveis, persistência do log de auditoria, geração assíncrona de documentos e a interface de gestão de parcerias.
 
