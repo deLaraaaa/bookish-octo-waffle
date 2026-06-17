@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { LanguageSwitcher } from '@/components/language-switcher'
-import { BRAND, Logo } from '@/style'
+import { BRAND, Logo, MicrosoftLogo } from '@/style'
 
 export default function Login() {
   const { t } = useTranslation()
@@ -45,9 +45,9 @@ export default function Login() {
             </Alert>
           )}
           <Button className="w-full" asChild>
-            <a href={`${API_URL}/auth/microsoft`}>              
+            <a href={`${API_URL}/auth/microsoft`}>
+              <MicrosoftLogo size={16} className="text-white" />
               {t('login.signInWithMicrosoft')}
-              <Logo variant="white" size={16} />
             </a>
           </Button>
         </CardContent>
