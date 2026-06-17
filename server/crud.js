@@ -44,7 +44,23 @@ const SCHEMA = Object.freeze({
     'status',
     'active',
     'role_id',
-    'institution_id'
+    'institution_id',
+    'email',
+    'microsoft_oid',
+    'email_verified',
+    'onboarding_completed'
+  ],
+
+  two_factor_code: [
+    'id',
+    'uuid',
+    'account_id',
+    'code_hash',
+    'expires_at',
+    'consumed_at',
+    'attempts',
+    'insert_date',
+    'active'
   ],
 
   signature: ['id', 'uuid', 'status', 'signed_date', 'insert_date', 'active'],

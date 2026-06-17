@@ -1,0 +1,66 @@
+{
+  "common": {
+    "loading": "Carregando…",
+    "appName": "Parcerias Católica SC",
+    "backToLogin": "Voltar ao login"
+  },
+  "roles": {
+    "aluno": "Aluno(a)",
+    "professor": "Professor(a)",
+    "user": "usuário"
+  },
+  "login": {
+    "description": "Entre utilizando o e-mail oficial da Católica SC.",
+    "signInWithMicrosoft": "Entrar com Microsoft",
+    "genericError": "Ocorreu um erro no login.",
+    "errors": {
+      "domain_not_allowed": "Use um e-mail @catolicasc.edu.br ou @catolicasc.org.br.",
+      "invalid_state": "Sessão de login expirada. Tente novamente.",
+      "login_failed": "Não foi possível concluir o login. Tente novamente.",
+      "missing_params": "Resposta inválida do provedor. Tente novamente."
+    }
+  },
+  "twoFactor": {
+    "title": "Verificação em duas etapas",
+    "description": "Digite o código de 4 dígitos enviado para o seu e-mail.",
+    "invalidLink": "Link de verificação inválido.",
+    "codeResent": "Novo código enviado.",
+    "verify": "Verificar",
+    "verifying": "Verificando…",
+    "resend": "Não recebeu? Reenviar código",
+    "resendIn": "Reenviar em {{seconds}}s",
+    "verifyError": "Não foi possível verificar o código.",
+    "resendError": "Não foi possível reenviar o código.",
+    "errors": {
+      "invalid": "Código incorreto. Verifique e tente novamente.",
+      "expired": "O código expirou. Solicite um novo.",
+      "too_many_attempts": "Muitas tentativas. Solicite um novo código.",
+      "no_code": "Nenhum código ativo. Solicite um novo.",
+      "invalid_challenge": "Sessão de verificação expirada. Faça login novamente.",
+      "missing_params": "Informe o código completo."
+    }
+  },
+  "authCallback": {
+    "signingIn": "Entrando…"
+  },
+  "onboarding": {
+    "welcome": "Bem-vindo(a), {{name}}!",
+    "enteredAs": "Você entrou como <b>{{role}}</b>. Precisamos de algumas informações para concluir seu cadastro.",
+    "unitQuestion": "A qual unidade você pertence?",
+    "loadUnitsError": "Não foi possível carregar as unidades.",
+    "saveError": "Não foi possível salvar. Tente novamente.",
+    "submit": "Concluir cadastro",
+    "submitting": "Salvando…"
+  },
+  "home": {
+    "logout": "Sair",
+    "templateTitle": "Gerar documento a partir de template",
+    "templateDescription": "Envie um arquivo .pdf ou .docx com variáveis no formato <<variavel>>.",
+    "send": "Enviar",
+    "fillVariables": "Preencher variáveis",
+    "generateDownload": "Gerar e baixar",
+    "selectFileFirst": "Selecione um arquivo primeiro.",
+    "uploadFailed": "Falha no upload.",
+    "generateFailed": "Erro ao gerar o arquivo."
+  }
+}

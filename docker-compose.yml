@@ -18,7 +18,10 @@ services:
     build: .
     container_name: tcc-api
     command: node --watch server/server.js
+    env_file:
+      - .env
     environment:
+      # sobrescreve o DATABASE_URL do .env (host) pelo endereço interno do compose
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/tcc
       PORT: 4000
     ports:

@@ -1,0 +1,66 @@
+{
+  "common": {
+    "loading": "Loading…",
+    "appName": "Católica SC Partnerships",
+    "backToLogin": "Back to login"
+  },
+  "roles": {
+    "aluno": "Student",
+    "professor": "Professor",
+    "user": "user"
+  },
+  "login": {
+    "description": "Sign in using your official Católica SC e-mail.",
+    "signInWithMicrosoft": "Sign in with Microsoft",
+    "genericError": "An error occurred during sign-in.",
+    "errors": {
+      "domain_not_allowed": "Use a @catolicasc.edu.br or @catolicasc.org.br e-mail.",
+      "invalid_state": "Sign-in session expired. Please try again.",
+      "login_failed": "Could not complete sign-in. Please try again.",
+      "missing_params": "Invalid response from the provider. Please try again."
+    }
+  },
+  "twoFactor": {
+    "title": "Two-step verification",
+    "description": "Enter the 4-digit code sent to your e-mail.",
+    "invalidLink": "Invalid verification link.",
+    "codeResent": "New code sent.",
+    "verify": "Verify",
+    "verifying": "Verifying…",
+    "resend": "Didn't receive it? Resend code",
+    "resendIn": "Resend in {{seconds}}s",
+    "verifyError": "Could not verify the code.",
+    "resendError": "Could not resend the code.",
+    "errors": {
+      "invalid": "Incorrect code. Please check and try again.",
+      "expired": "The code has expired. Request a new one.",
+      "too_many_attempts": "Too many attempts. Request a new code.",
+      "no_code": "No active code. Request a new one.",
+      "invalid_challenge": "Verification session expired. Please sign in again.",
+      "missing_params": "Enter the full code."
+    }
+  },
+  "authCallback": {
+    "signingIn": "Signing in…"
+  },
+  "onboarding": {
+    "welcome": "Welcome, {{name}}!",
+    "enteredAs": "You signed in as <b>{{role}}</b>. We need some information to complete your registration.",
+    "unitQuestion": "Which campus do you belong to?",
+    "loadUnitsError": "Could not load the campuses.",
+    "saveError": "Could not save. Please try again.",
+    "submit": "Complete registration",
+    "submitting": "Saving…"
+  },
+  "home": {
+    "logout": "Sign out",
+    "templateTitle": "Generate a document from a template",
+    "templateDescription": "Upload a .pdf or .docx file with variables in the <<variable>> format.",
+    "send": "Upload",
+    "fillVariables": "Fill in variables",
+    "generateDownload": "Generate & download",
+    "selectFileFirst": "Select a file first.",
+    "uploadFailed": "Upload failed.",
+    "generateFailed": "Error generating the file."
+  }
+}

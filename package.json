@@ -1,8 +1,19 @@
 {
+  "scripts": {
+    "start": "docker compose up -d --build",
+    "start:docker": "docker compose up -d --build",
+    "stop": "docker compose down",
+    "restart": "docker compose up -d --build --force-recreate",
+    "logs": "docker compose logs -f api",
+    "dev:api": "node --watch server/server.js",
+    "test:smtp": "node server/scripts/test-smtp.js"
+  },
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.14",
     "pg": "^8.20.0"
   }
 }
