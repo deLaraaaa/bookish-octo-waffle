@@ -19,15 +19,14 @@ function hashCode(code) {
   return crypto.createHash('sha256').update(`${code}:${SECRET}`).digest('hex');
 }
 
-// Gera um novo código, persiste o hash e dispara o e-mail.
-async function issueCode(account) {
+async function issueCode(identity) {
   const code = generateCode();
   const expiresAt = new Date(Date.now() + CODE_TTL_MS);
 
   await crud.create(
     'two_factor_code',
     {
-      account_id: account.id,
+      identity_id: identity.id,
       code_hash: hashCode(code),
       expires_at: expiresAt
     },
@@ -35,16 +34,15 @@ async function issueCode(account) {
     SYSTEM_USER
   );
 
-  await email.sendVerificationCode(account.email, code);
+  await email.sendVerificationCode(identity.email, code);
   return { expiresAt };
 }
 
-// Valida o código informado. Retorna { ok, reason }.
-async function verifyCode(account, code) {
+async function verifyCode(identity, code) {
   const rows = await crud.list(
     'two_factor_code',
     {
-      where: { account_id: account.id, consumed_at: null, active: true },
+      where: { identity_id: identity.id, consumed_at: null, active: true },
       orderBy: [{ column: 'insert_date', direction: 'DESC' }],
       limit: 1
     },

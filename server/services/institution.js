@@ -5,7 +5,6 @@ const crud = require('../crud');
 
 const SYSTEM_USER = 'system:app';
 
-// Lista as unidades (institution) ativas, usadas no onboarding.
 function list(user) {
   return crud.list(
     'institution',

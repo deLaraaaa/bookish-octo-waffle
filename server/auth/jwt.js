@@ -10,14 +10,14 @@ if (!process.env.JWT_SECRET) {
   console.warn('[auth] JWT_SECRET not set; using an insecure development secret.');
 }
 
-// Sessão da aplicação (após login + 2FA quando aplicável).
-function signSession(account, opts = {}) {
+// sub = uuid da pessoa; role derivado do domínio do login atual.
+function signSession(person, role, email, opts = {}) {
   return jwt.sign(
     {
-      sub: account.uuid,
-      email: account.email,
-      name: account.name,
-      role_id: account.role_id ?? null,
+      sub: person.uuid,
+      email,
+      name: person.full_name,
+      role,
       typ: 'session'
     },
     SECRET,
@@ -25,10 +25,10 @@ function signSession(account, opts = {}) {
   );
 }
 
-// Token intermediário emitido entre o login Microsoft e a verificação do 2FA.
-function signChallenge(account, opts = {}) {
+// sub = uuid da identidade (o e-mail em verificação).
+function signChallenge(identity, opts = {}) {
   return jwt.sign(
-    { sub: account.uuid, email: account.email, typ: '2fa_challenge' },
+    { sub: identity.uuid, email: identity.email, typ: '2fa_challenge' },
     SECRET,
     { expiresIn: opts.expiresIn || '10m' }
   );

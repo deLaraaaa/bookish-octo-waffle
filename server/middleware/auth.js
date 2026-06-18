@@ -3,7 +3,6 @@
 
 const tokens = require('../auth/jwt');
 
-// Protege rotas que exigem sessão válida (JWT no header Authorization: Bearer <token>).
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const match = /^Bearer\s+(.+)$/i.exec(header);

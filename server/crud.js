@@ -36,25 +36,35 @@ const SCHEMA = Object.freeze({
     'active'
   ],
 
-  account: [
+  person: [
     'id',
     'uuid',
-    'name',
-    'create_date',
-    'status',
+    'full_name',
+    'cpf_hash',
+    'onboarding_completed',
+    'insert_date',
     'active',
-    'role_id',
-    'institution_id',
-    'email',
+    'institution_id'
+  ],
+
+  identity: [
+    'id',
+    'uuid',
+    'person_id',
+    'provider',
     'microsoft_oid',
+    'email',
+    'domain',
     'email_verified',
-    'onboarding_completed'
+    'active',
+    'first_seen_at',
+    'last_login_at'
   ],
 
   two_factor_code: [
     'id',
     'uuid',
-    'account_id',
+    'identity_id',
     'code_hash',
     'expires_at',
     'consumed_at',
@@ -120,13 +130,7 @@ const SCHEMA = Object.freeze({
   seal: ['id', 'uuid', 'name', 'create_date', 'active', 'file_resource_id']
 });
 
-const PUBLIC_READ = Object.freeze({
-  account: Object.freeze({
-    select: Object.freeze(['id', 'uuid', 'name', 'status', 'active', 'role_id', 'institution_id']),
-    whereColumns: Object.freeze(['uuid']),
-    allowOps: Object.freeze(['='])
-  })
-});
+const PUBLIC_READ = Object.freeze({});
 
 function requireUser(user, fnName) {
   if (!user) throw new Error(`${fnName}: user is required`);

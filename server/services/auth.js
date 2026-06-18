@@ -14,7 +14,6 @@ const ALLOWED_DOMAINS = (process.env.ALLOWED_EMAIL_DOMAINS || 'catolicasc.edu.br
   .map((d) => d.trim().toLowerCase())
   .filter(Boolean);
 
-// Erro com status HTTP, para a rota saber qual código devolver.
 class HttpError extends Error {
   constructor(status, code) {
     super(code);
@@ -23,9 +22,16 @@ class HttpError extends Error {
   }
 }
 
+function domainOf(email) {
+  return String(email).split('@')[1]?.toLowerCase() || '';
+}
+
 function emailDomainAllowed(email) {
-  const domain = String(email).split('@')[1] || '';
-  return ALLOWED_DOMAINS.includes(domain.toLowerCase());
+  return ALLOWED_DOMAINS.includes(domainOf(email));
+}
+
+function roleForDomain(domain) {
+  return String(domain).toLowerCase().endsWith('edu.br') ? 'aluno' : 'professor';
 }
 
 function frontendUrl(path, params = {}) {
@@ -34,30 +40,61 @@ function frontendUrl(path, params = {}) {
   return url.toString();
 }
 
-function findAccountByOid(oid) {
-  return crud.read('account', { where: { microsoft_oid: oid } }, null, SYSTEM_USER);
+function findIdentityByOid(oid) {
+  return crud.read('identity', { where: { microsoft_oid: oid } }, null, SYSTEM_USER);
 }
 
-function findAccountByEmail(email) {
-  return crud.read('account', { where: { email } }, null, SYSTEM_USER);
+function readPersonById(id) {
+  return crud.read('person', { where: { id } }, null, SYSTEM_USER);
 }
 
-// Deriva o papel a partir do domínio: edu.br -> aluno, org.br -> professor.
-async function roleIdForEmail(email) {
-  const domain = String(email).split('@')[1] || '';
-  const name = domain.toLowerCase().endsWith('edu.br') ? 'aluno' : 'professor';
-  const role = await crud.read('role', { select: ['id'], where: { name } }, null, SYSTEM_USER);
-  return role ? role.id : null;
+function readRoleId(name) {
+  return crud
+    .read('role', { select: ['id'], where: { name } }, null, SYSTEM_USER)
+    .then((r) => (r ? r.id : null));
 }
 
-// Monta a URL de login da Microsoft.
 async function microsoftAuthUrl() {
   if (!microsoft.isConfigured()) throw new HttpError(503, 'azure_not_configured');
   const state = tokens.signState({ n: Date.now() });
   return microsoft.authorizeUrl(state);
 }
 
-// Processa o callback da Microsoft e resolve a URL de redirecionamento do frontend.
+async function resolveIdentity(profile) {
+  const domain = domainOf(profile.email);
+
+  let identity = await findIdentityByOid(profile.oid);
+  if (identity) {
+    const updated = await crud
+      .update(
+        'identity',
+        { last_login_at: new Date(), email: profile.email, domain },
+        { where: { id: identity.id } },
+        SYSTEM_USER
+      )
+      .then((rows) => rows[0]);
+    return { identity: updated, isNewIdentity: false };
+  }
+
+  const person = await crud.create('person', { full_name: profile.name }, {}, SYSTEM_USER);
+  identity = await crud.create(
+    'identity',
+    {
+      person_id: person.id,
+      provider: 'microsoft',
+      microsoft_oid: profile.oid,
+      email: profile.email,
+      domain,
+      email_verified: false,
+      last_login_at: new Date()
+    },
+    {},
+    SYSTEM_USER
+  );
+
+  return { identity, isNewIdentity: true };
+}
+
 async function handleMicrosoftCallback(query) {
   const { code, state, error: oauthError } = query;
 
@@ -79,48 +116,25 @@ async function handleMicrosoftCallback(query) {
       return frontendUrl('/login', { error: 'domain_not_allowed' });
     }
 
-    let account = await findAccountByOid(profile.oid);
-    let isNew = false;
+    const { identity, isNewIdentity } = await resolveIdentity(profile);
 
-    if (!account) {
-      const byEmail = await findAccountByEmail(profile.email);
-      if (byEmail) {
-        account = await crud
-          .update(
-            'account',
-            { microsoft_oid: profile.oid, name: byEmail.name || profile.name },
-            { where: { id: byEmail.id } },
-            SYSTEM_USER
-          )
-          .then((rows) => rows[0]);
-      } else {
-        isNew = true;
-        account = await crud.create(
-          'account',
-          {
-            name: profile.name,
-            email: profile.email,
-            microsoft_oid: profile.oid,
-            status: 'pending',
-            email_verified: false,
-            role_id: await roleIdForEmail(profile.email)
-          },
-          {},
-          SYSTEM_USER
-        );
-      }
-    }
+    logger.info('login_identity', {
+      oid: profile.oid,
+      domain: domainOf(profile.email),
+      reused_identity: !isNewIdentity
+    });
 
-    // Exige 2FA na criação da conta (ou enquanto o e-mail não foi verificado).
-    if (isNew || !account.email_verified) {
-      await twofactor.issueCode(account);
-      const challenge = tokens.signChallenge(account);
-      logger.info('login_2fa_required', { account: account.uuid, isNew });
+    if (!identity.email_verified) {
+      await twofactor.issueCode(identity);
+      const challenge = tokens.signChallenge(identity);
+      logger.info('login_2fa_required', { identity: identity.uuid, isNewIdentity });
       return frontendUrl('/2fa', { challenge });
     }
 
-    const session = tokens.signSession(account);
-    logger.info('login_success', { account: account.uuid });
+    const person = await readPersonById(identity.person_id);
+    const role = roleForDomain(identity.domain);
+    const session = tokens.signSession(person, role, identity.email);
+    logger.info('login_success', { person: person.uuid, role });
     return frontendUrl('/auth/callback', { token: session });
   } catch (e) {
     logger.error('login_callback_error', { message: e.message });
@@ -128,7 +142,6 @@ async function handleMicrosoftCallback(query) {
   }
 }
 
-// Verifica os 4 dígitos do 2FA e devolve o token de sessão.
 async function verifyTwoFactor({ challenge, code }) {
   if (!challenge || !code) throw new HttpError(400, 'missing_params');
 
@@ -139,29 +152,28 @@ async function verifyTwoFactor({ challenge, code }) {
     throw new HttpError(401, 'invalid_challenge');
   }
 
-  const account = await crud.read('account', { where: { uuid: claims.sub } }, null, SYSTEM_USER);
-  if (!account) throw new HttpError(404, 'account_not_found');
+  const identity = await crud.read('identity', { where: { uuid: claims.sub } }, null, SYSTEM_USER);
+  if (!identity) throw new HttpError(404, 'identity_not_found');
 
-  const result = await twofactor.verifyCode(account, code);
+  const result = await twofactor.verifyCode(identity, code);
   if (!result.ok) {
-    logger.warn('2fa_failed', { account: account.uuid, reason: result.reason });
+    logger.warn('2fa_failed', { identity: identity.uuid, reason: result.reason });
     throw new HttpError(401, result.reason);
   }
 
-  const updated = await crud
-    .update(
-      'account',
-      { status: 'active', email_verified: true },
-      { where: { id: account.id } },
-      SYSTEM_USER
-    )
-    .then((rows) => rows[0]);
+  await crud.update(
+    'identity',
+    { email_verified: true, active: true },
+    { where: { id: identity.id } },
+    SYSTEM_USER
+  );
 
-  logger.info('2fa_success', { account: account.uuid });
-  return { token: tokens.signSession(updated) };
+  const person = await readPersonById(identity.person_id);
+  const role = roleForDomain(identity.domain);
+  logger.info('2fa_success', { person: person.uuid, role });
+  return { token: tokens.signSession(person, role, identity.email) };
 }
 
-// Reenvia o código do 2FA.
 async function resendTwoFactor({ challenge }) {
   if (!challenge) throw new HttpError(400, 'missing_params');
 
@@ -172,36 +184,42 @@ async function resendTwoFactor({ challenge }) {
     throw new HttpError(401, 'invalid_challenge');
   }
 
-  const account = await crud.read('account', { where: { uuid: claims.sub } }, null, SYSTEM_USER);
-  if (!account) throw new HttpError(404, 'account_not_found');
+  const identity = await crud.read('identity', { where: { uuid: claims.sub } }, null, SYSTEM_USER);
+  if (!identity) throw new HttpError(404, 'identity_not_found');
 
-  await twofactor.issueCode(account);
+  await twofactor.issueCode(identity);
   return { ok: true };
 }
 
-// Dados da conta logada (inclui papel e status do onboarding).
 async function getAccount(userClaims) {
-  const account = await crud.read(
-    'account',
+  const person = await crud.read(
+    'person',
     {
-      select: ['uuid', 'name', 'email', 'status', 'role_id', 'institution_id', 'onboarding_completed'],
+      select: ['uuid', 'full_name', 'institution_id', 'onboarding_completed'],
       where: { uuid: userClaims.sub }
     },
     null,
     SYSTEM_USER
   );
-  if (!account) throw new HttpError(404, 'account_not_found');
+  if (!person) throw new HttpError(404, 'person_not_found');
 
-  let role = null;
-  if (account.role_id) {
-    const r = await crud.read('role', { select: ['name'], where: { id: account.role_id } }, null, SYSTEM_USER);
-    role = r ? r.name : null;
-  }
+  const role = userClaims.role || null;
+  const roleId = role ? await readRoleId(role) : null;
 
-  return { account: { ...account, role } };
+  return {
+    account: {
+      uuid: person.uuid,
+      name: person.full_name,
+      email: userClaims.email || null,
+      status: 'active',
+      role,
+      role_id: roleId,
+      institution_id: person.institution_id,
+      onboarding_completed: person.onboarding_completed
+    }
+  };
 }
 
-// Conclui o onboarding (escolha de unidade + futuras perguntas).
 async function submitOnboarding(userClaims, body) {
   const institutionId = Number(body?.institution_id);
   if (!institutionId) throw new HttpError(400, 'institution_required');
@@ -211,15 +229,15 @@ async function submitOnboarding(userClaims, body) {
 
   const updated = await crud
     .update(
-      'account',
+      'person',
       { institution_id: institutionId, onboarding_completed: true },
       { where: { uuid: userClaims.sub } },
       SYSTEM_USER
     )
     .then((rows) => rows[0]);
 
-  if (!updated) throw new HttpError(404, 'account_not_found');
-  logger.info('onboarding_completed', { account: userClaims.sub });
+  if (!updated) throw new HttpError(404, 'person_not_found');
+  logger.info('onboarding_completed', { person: userClaims.sub });
   return { ok: true };
 }
 

@@ -23,7 +23,6 @@ function isConfigured() {
   return Boolean(c.clientId && c.clientSecret);
 }
 
-// URL para onde o navegador é redirecionado para autenticar.
 function authorizeUrl(state) {
   const c = config();
   const params = new URLSearchParams({
@@ -38,7 +37,6 @@ function authorizeUrl(state) {
   return `${AUTHORITY}/oauth2/v2.0/authorize?${params.toString()}`;
 }
 
-// Troca o "code" recebido no callback por tokens.
 async function exchangeCode(code) {
   const c = config();
   const body = new URLSearchParams({
@@ -64,9 +62,9 @@ async function exchangeCode(code) {
   return res.json(); // { access_token, id_token, expires_in, ... }
 }
 
-// Busca o perfil autoritativo do usuário via Microsoft Graph.
 async function fetchProfile(accessToken) {
-  const res = await fetch('https://graph.microsoft.com/v1.0/me', {
+  const select = ['id', 'displayName', 'mail', 'userPrincipalName'].join(',');
+  const res = await fetch(`https://graph.microsoft.com/v1.0/me?$select=${encodeURIComponent(select)}`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
 
@@ -79,7 +77,7 @@ async function fetchProfile(accessToken) {
   const email = (me.mail || me.userPrincipalName || '').toLowerCase();
 
   return {
-    oid: me.id, // object id estável da conta Microsoft
+    oid: me.id, // object id estável da conta Microsoft (não muda quando o e-mail é renomeado)
     name: me.displayName || email,
     email
   };
