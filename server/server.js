@@ -1,5 +1,5 @@
 // server/server.js
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '..', '.env') });
 
 const express = require('express');
 const cors = require('cors');
@@ -8,6 +8,7 @@ const db = require('./db');
 const httpLogs = require('./http_logs.js');
 const authRoutes = require('./routes/auth');
 const institutionRoutes = require('./routes/institutions');
+const enterpriseRoutes = require('./routes/enterprises');
 const app = express();
 
 app.use(cors());
@@ -21,6 +22,7 @@ app.get("/health", async (_req, res) => {
 
 app.use("/auth", authRoutes);
 app.use("/institutions", institutionRoutes);
+app.use("/enterprises", enterpriseRoutes);
 
 const PORT = process.env.PORT || 4000;
 

@@ -48,10 +48,9 @@ function readPersonById(id) {
   return crud.read('person', { where: { id } }, null, SYSTEM_USER);
 }
 
-function readRoleId(name) {
-  return crud
-    .read('role', { select: ['id'], where: { name } }, null, SYSTEM_USER)
-    .then((r) => (r ? r.id : null));
+async function readRoleId(name) {
+  const r = await crud.read('role', { select: ['id'], where: { name } }, null, SYSTEM_USER);
+  return r ? r.id : null;
 }
 
 async function microsoftAuthUrl() {
@@ -65,15 +64,13 @@ async function resolveIdentity(profile) {
 
   let identity = await findIdentityByOid(profile.oid);
   if (identity) {
-    const updated = await crud
-      .update(
-        'identity',
-        { last_login_at: new Date(), email: profile.email, domain },
-        { where: { id: identity.id } },
-        SYSTEM_USER
-      )
-      .then((rows) => rows[0]);
-    return { identity: updated, isNewIdentity: false };
+    const rows = await crud.update(
+      'identity',
+      { last_login_at: new Date(), email: profile.email, domain },
+      { where: { id: identity.id } },
+      SYSTEM_USER
+    );
+    return { identity: rows[0], isNewIdentity: false };
   }
 
   const person = await crud.create('person', { full_name: profile.name }, {}, SYSTEM_USER);
@@ -206,6 +203,21 @@ async function getAccount(userClaims) {
   const role = userClaims.role || null;
   const roleId = role ? await readRoleId(role) : null;
 
+  let institutionName = null;
+  let institutionCity = null;
+  if (person.institution_id != null) {
+    const inst = await crud.read(
+      'institution',
+      { select: ['name', 'city'], where: { id: person.institution_id } },
+      null,
+      SYSTEM_USER
+    );
+    if (inst) {
+      institutionName = inst.name;
+      institutionCity = inst.city;
+    }
+  }
+
   return {
     account: {
       uuid: person.uuid,
@@ -215,6 +227,8 @@ async function getAccount(userClaims) {
       role,
       role_id: roleId,
       institution_id: person.institution_id,
+      institution_name: institutionName,
+      institution_city: institutionCity,
       onboarding_completed: person.onboarding_completed
     }
   };
@@ -227,14 +241,13 @@ async function submitOnboarding(userClaims, body) {
   const inst = await crud.read('institution', { where: { id: institutionId } }, null, SYSTEM_USER);
   if (!inst) throw new HttpError(400, 'invalid_institution');
 
-  const updated = await crud
-    .update(
-      'person',
-      { institution_id: institutionId, onboarding_completed: true },
-      { where: { uuid: userClaims.sub } },
-      SYSTEM_USER
-    )
-    .then((rows) => rows[0]);
+  const rows = await crud.update(
+    'person',
+    { institution_id: institutionId, onboarding_completed: true },
+    { where: { uuid: userClaims.sub } },
+    SYSTEM_USER
+  );
+  const updated = rows[0];
 
   if (!updated) throw new HttpError(404, 'person_not_found');
   logger.info('onboarding_completed', { person: userClaims.sub });

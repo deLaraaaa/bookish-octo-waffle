@@ -104,6 +104,8 @@ const SCHEMA = Object.freeze({
     'id',
     'uuid',
     'name',
+    'responsible_person',
+    'phone_number',
     'insert_date',
     'street',
     'number',
@@ -113,7 +115,10 @@ const SCHEMA = Object.freeze({
     'zip_code',
     'status',
     'active',
-    'institution_id'
+    'institution_id',
+    'created_by_person_id',
+    'cnpj',
+    'contact_email'
   ],
 
   enterprise_document: [

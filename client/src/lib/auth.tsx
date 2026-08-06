@@ -17,31 +17,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // telas que também chamam refresh) reaproveitam a mesma promise.
   const inflight = useRef<Promise<Account | null> | null>(null)
 
-  function refresh(): Promise<Account | null> {
+  async function loadAccount(): Promise<Account | null> {
+    if (!getToken()) {
+      setAccount(null)
+      return null
+    }
+    try {
+      const data = await api<{ account: Account }>('/auth/me', { auth: true })
+      setAccount(data.account)
+      return data.account
+    } catch {
+      clearToken()
+      setAccount(null)
+      return null
+    }
+  }
+
+  async function refresh(): Promise<Account | null> {
+    // Chamadas concorrentes reaproveitam a mesma promise em andamento.
     if (inflight.current) return inflight.current
 
-    const request = (async () => {
-      if (!getToken()) {
-        setAccount(null)
-        return null
-      }
-      try {
-        const data = await api<{ account: Account }>('/auth/me', { auth: true })
-        setAccount(data.account)
-        return data.account
-      } catch {
-        clearToken()
-        setAccount(null)
-        return null
-      }
-    })().finally(() => {
-      // Sempre executa (sem token, sucesso ou erro): nunca deixa o inflight "preso".
+    const request = loadAccount()
+    inflight.current = request
+    try {
+      return await request
+    } finally {
+      // Sempre executa (sucesso ou erro): nunca deixa o inflight "preso".
       setLoading(false)
       inflight.current = null
-    })
-
-    inflight.current = request
-    return request
+    }
   }
 
   function logout() {

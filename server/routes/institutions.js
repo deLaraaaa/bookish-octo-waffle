@@ -7,13 +7,17 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-const onError = (res) => ({ message = 'Internal error', status = 500, stack }) =>
+function sendError(res, { message = 'Internal error', status = 500, stack } = {}) {
   res.status(status).send({ Error: message, Stack: stack });
+}
 
-router.get('/', requireAuth, (req, res) => {
-  institution.list(req.user)
-    .then((data) => res.send(data))
-    .catch(onError(res));
+router.get('/', requireAuth, async (req, res) => {
+  try {
+    const data = await institution.list(req.user);
+    res.send(data);
+  } catch (err) {
+    sendError(res, err);
+  }
 });
 
 module.exports = router;

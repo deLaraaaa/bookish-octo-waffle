@@ -18,9 +18,11 @@ export default function AuthCallback() {
       return
     }
     setToken(token)
-    refresh().then((account) => {
+    async function completeLogin() {
+      const account = await refresh()
       navigate(account?.onboarding_completed ? '/' : '/onboarding', { replace: true })
-    })
+    }
+    completeLogin()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

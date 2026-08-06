@@ -29,9 +29,14 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (!account) return
-    api<Institution[]>('/institutions', { auth: true })
-      .then(setInstitutions)
-      .catch(() => setError(t('onboarding.loadUnitsError')))
+    async function loadInstitutions() {
+      try {
+        setInstitutions(await api<Institution[]>('/institutions', { auth: true }))
+      } catch {
+        setError(t('onboarding.loadUnitsError'))
+      }
+    }
+    loadInstitutions()
   }, [account, t])
 
   if (loading) {
