@@ -44,7 +44,17 @@ const SCHEMA = Object.freeze({
     'onboarding_completed',
     'insert_date',
     'active',
-    'institution_id'
+    'institution_id',
+    'role_id'
+  ],
+
+  role_invite: [
+    'id',
+    'email',
+    'role_id',
+    'consumed_at',
+    'insert_date',
+    'active'
   ],
 
   identity: [

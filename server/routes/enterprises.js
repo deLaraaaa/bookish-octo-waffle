@@ -4,7 +4,7 @@
 const express = require('express');
 const multer = require('multer');
 const enterprise = require('../services/enterprise');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -20,7 +20,11 @@ function sendError(res, { message = 'Internal error', status = 500, stack } = {}
 
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const data = await enterprise.list(req.user, { search: req.query.search });
+    const data = await enterprise.list(req.user, {
+      search: req.query.search,
+      city: req.query.city,
+      page: req.query.page
+    });
     res.send(data);
   } catch (err) {
     sendError(res, err);
@@ -30,6 +34,46 @@ router.get('/', requireAuth, async (req, res) => {
 router.get('/mine', requireAuth, async (req, res) => {
   try {
     const data = await enterprise.listMine(req.user);
+    res.send(data);
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// --- Gestão (papel MANAGER/ADMIN) ---
+
+// Empresas aguardando análise (status 'pending') + contratos.
+router.get('/pending', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
+  try {
+    const data = await enterprise.listPending(req.user, {
+      search: req.query.search,
+      page: req.query.page
+    });
+    res.send(data);
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// Catálogo completo (todos os status) + contratos, para a gestão.
+router.get('/manage', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
+  try {
+    const data = await enterprise.listManage(req.user, {
+      search: req.query.search,
+      city: req.query.city,
+      status: req.query.status,
+      page: req.query.page
+    });
+    res.send(data);
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// Aprovar/suspender: transição de estado da empresa (pending -> active, etc).
+router.patch('/:uuid/status', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
+  try {
+    const data = await enterprise.updateStatus(req.user, req.params.uuid, (req.body || {}).status);
     res.send(data);
   } catch (err) {
     sendError(res, err);

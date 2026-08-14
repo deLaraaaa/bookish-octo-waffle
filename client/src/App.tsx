@@ -7,8 +7,16 @@ import TwoFactor from '@/pages/TwoFactor'
 import AuthCallback from '@/pages/AuthCallback'
 import Onboarding from '@/pages/Onboarding'
 import Home from '@/pages/Home'
+import Manage from '@/pages/Manage'
+import type { Account } from '@/lib/api'
 
-function Protected({ children }: { children: React.ReactNode }) {
+function Protected({
+  children,
+  roles,
+}: {
+  children: React.ReactNode
+  roles?: Array<NonNullable<Account['role']>>
+}) {
   const { account, loading } = useAuth()
   const { t } = useTranslation()
 
@@ -25,6 +33,10 @@ function Protected({ children }: { children: React.ReactNode }) {
   // Sessão válida mas onboarding pendente -> força o onboarding.
   if (!account.onboarding_completed) {
     return <Navigate to="/onboarding" replace />
+  }
+  // Guarda por papel: sem o papel exigido, volta ao catálogo.
+  if (roles && !(account.role && roles.includes(account.role))) {
+    return <Navigate to="/" replace />
   }
   return <>{children}</>
 }
@@ -43,6 +55,14 @@ export default function App() {
           element={
             <Protected>
               <Home />
+            </Protected>
+          }
+        />
+        <Route
+          path="/manage"
+          element={
+            <Protected roles={['MANAGER', 'ADMIN']}>
+              <Manage />
             </Protected>
           }
         />

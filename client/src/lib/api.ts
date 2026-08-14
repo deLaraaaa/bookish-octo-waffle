@@ -61,7 +61,7 @@ export type Account = {
   name: string
   email: string
   status: string
-  role: 'aluno' | 'professor' | null
+  role: 'STUDENT' | 'TEACHER' | 'MANAGER' | 'ADMIN' | null
   role_id: number | null
   institution_id: number | null
   institution_name: string | null
@@ -73,6 +73,14 @@ export type Institution = {
   id: number
   uuid: string
   name: string
+}
+
+// Resposta paginada genérica da API (ex.: catálogo de empresas).
+export type Paginated<T> = {
+  items: T[]
+  page: number
+  pageSize: number
+  hasMore: boolean
 }
 
 export type Enterprise = {
@@ -88,6 +96,9 @@ export type Enterprise = {
   zip_code: string | null
   status: string
   institution: { name: string; city: string | null } | null
+  // Presente apenas para papéis privilegiados (professor/gestão); o backend
+  // decide isso pelo papel do JWT — para aluno a chave nem existe.
+  contracts?: Contract[]
 }
 
 export type Contract = {
@@ -106,6 +117,21 @@ export type MyEnterprise = Omit<Enterprise, 'institution'> & {
   cnpj: string | null
   contact_email: string | null
   contracts: Contract[]
+}
+
+// Forma mínima aceita pela linha expansível (MyEnterpriseRow). Tanto MyEnterprise
+// quanto um item do catálogo enriquecido com contratos são compatíveis com ela.
+export type EnterpriseCard = {
+  name: string
+  responsible_person: string | null
+  phone_number: string | null
+  street: string | null
+  number: string | null
+  neighborhood: string | null
+  city: string | null
+  state: string | null
+  status: string
+  contracts?: Contract[]
 }
 
 export type CnpjLookup = {

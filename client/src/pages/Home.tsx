@@ -1,40 +1,38 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight, FileText, MapPin, Phone, Plus, Search, User } from 'lucide-react'
-import { api, type Contract, type Enterprise, type MyEnterprise } from '@/lib/api'
+import { Link } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, Plus, Search, ShieldCheck } from 'lucide-react'
+import {
+  api,
+  type Enterprise,
+  type Institution,
+  type MyEnterprise,
+  type Paginated,
+} from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { EnterpriseFormModal } from '@/components/enterprise-form-modal'
+import { EnterpriseRow, MyEnterpriseRow } from '@/components/enterprise-list'
 import { Logo } from '@/style'
-import { cn } from '@/lib/utils'
-
-const OTHER = '__other__'
-
-// Normaliza cidade para comparar/agrupar (sem acento, minúsculo, sem espaços nas pontas).
-function normCity(city?: string | null): string {
-  return (city || '')
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .trim()
-    .toLowerCase()
-}
-
-type CityGroup = { key: string; label: string; items: Enterprise[] }
 
 export default function Home() {
   const { t } = useTranslation()
   const { account, logout } = useAuth()
 
-  // Catálogo público
+  // Catálogo público (paginado: 10 por página, controlado pelo backend)
   const [enterprises, setEnterprises] = useState<Enterprise[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [searchInput, setSearchInput] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
-  const [activeCity, setActiveCity] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
   const [openUuid, setOpenUuid] = useState<string | null>(null)
+  // Filtro por cidade de origem — opções vêm da tabela institution.
+  const [cities, setCities] = useState<string[]>([])
+  const [city, setCity] = useState('')
 
   // Minhas empresas (criadas pelo usuário)
   const [mine, setMine] = useState<MyEnterprise[]>([])
@@ -52,14 +50,18 @@ export default function Home() {
     }
   }
 
-  // Busca no backend (endpoint), não no frontend.
-  async function fetchCatalog(search: string) {
+  // Busca, filtro de cidade e paginação no backend (endpoint), não no frontend.
+  async function fetchCatalog(search: string, nextPage: number, cityFilter: string) {
     setLoading(true)
     setError(false)
     try {
-      const qs = search ? `?search=${encodeURIComponent(search)}` : ''
-      const data = await api<Enterprise[]>(`/enterprises${qs}`, { auth: true })
-      setEnterprises(data)
+      const params = new URLSearchParams({ page: String(nextPage) })
+      if (search) params.set('search', search)
+      if (cityFilter) params.set('city', cityFilter)
+      const data = await api<Paginated<Enterprise>>(`/enterprises?${params}`, { auth: true })
+      setEnterprises(data.items)
+      setHasMore(data.hasMore)
+      setPage(data.page)
       setAppliedSearch(search)
     } catch {
       setError(true)
@@ -69,7 +71,23 @@ export default function Home() {
   }
 
   useEffect(() => {
-    fetchCatalog('')
+    async function init() {
+      // Carrega as cidades (nomes das instituições) e escolhe como padrão a
+      // cidade de origem da conta, quando ela está entre as opções.
+      let initialCity = ''
+      try {
+        const insts = await api<Institution[]>('/institutions', { auth: true })
+        const names = Array.from(new Set(insts.map((i) => i.name).filter(Boolean)))
+        setCities(names)
+        const accountCity = account?.institution_name ?? ''
+        initialCity = accountCity && names.includes(accountCity) ? accountCity : ''
+        setCity(initialCity)
+      } catch {
+        // Sem cidades: o catálogo continua funcionando sem o filtro.
+      }
+      fetchCatalog('', 1, initialCity)
+    }
+    init()
     fetchMine()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -77,46 +95,34 @@ export default function Home() {
   function onSearchSubmit(e: React.FormEvent) {
     e.preventDefault()
     setOpenUuid(null)
-    fetchCatalog(searchInput.trim())
+    fetchCatalog(searchInput.trim(), 1, city) // nova busca sempre volta à página 1
   }
 
   function onClearSearch() {
     setSearchInput('')
     setOpenUuid(null)
-    fetchCatalog('')
+    fetchCatalog('', 1, city)
   }
 
-  // Agrupa o resultado do catálogo por cidade (vinda da instituição).
-  const groups = useMemo<CityGroup[]>(() => {
-    const map = new Map<string, CityGroup>()
-    for (const e of enterprises) {
-      const raw = e.city?.trim() || ''
-      const key = raw ? normCity(raw) : OTHER
-      const label = raw || t('home.catalog.otherCity')
-      const g = map.get(key)
-      if (g) g.items.push(e)
-      else map.set(key, { key, label, items: [e] })
-    }
-    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label))
-  }, [enterprises, t])
+  // Troca de cidade: volta à página 1 e recarrega do backend.
+  function onCityChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const next = e.target.value
+    setCity(next)
+    setOpenUuid(null)
+    fetchCatalog(appliedSearch, 1, next)
+  }
 
-  // Mantém a cidade ativa se ainda existir; senão escolhe a cidade de origem da
-  // conta (fallback: primeira aba).
-  useEffect(() => {
-    if (groups.length === 0) {
-      setActiveCity(null)
-      return
-    }
-    setActiveCity((cur) => {
-      if (cur && groups.some((g) => g.key === cur)) return cur
-      const origin = normCity(account?.institution_city)
-      const match = groups.find((g) => g.key === origin)
-      return match ? match.key : groups[0].key
-    })
-  }, [groups, account?.institution_city])
+  // Troca de página: mantém busca e cidade aplicadas e recarrega do backend.
+  function goToPage(nextPage: number) {
+    if (nextPage < 1 || loading) return
+    setOpenUuid(null)
+    fetchCatalog(appliedSearch, nextPage, city)
+  }
 
-  const activeGroup = groups.find((g) => g.key === activeCity) ?? null
   const roleSuffix = account?.role ? ` · ${t(`roles.${account.role}`)}` : ''
+  const canManage = account?.role === 'MANAGER' || account?.role === 'ADMIN'
+  // Professor tem acesso de leitura aos contratos de todas as empresas.
+  const canViewContracts = canManage || account?.role === 'TEACHER'
 
   return (
     <div className="min-h-screen bg-muted/40">
@@ -133,6 +139,14 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {canManage && (
+              <Button asChild variant="outline" size="sm">
+                <Link to="/manage">
+                  <ShieldCheck className="mr-1 h-4 w-4" />
+                  {t('manage.navLink')}
+                </Link>
+              </Button>
+            )}
             <LanguageSwitcher />
             <Button variant="outline" size="sm" onClick={logout}>
               {t('home.logout')}
@@ -189,276 +203,112 @@ export default function Home() {
             <p className="text-sm text-muted-foreground">{t('home.catalog.description')}</p>
           </div>
 
-          {/* Busca via endpoint (campo + botão) */}
-          <form onSubmit={onSearchSubmit} className="mb-4 flex gap-2 sm:max-w-md">
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder={t('home.catalog.searchPlaceholder')}
-            />
-            <Button type="submit" disabled={loading}>
-              <Search className="mr-1 h-4 w-4" />
-              {t('home.catalog.search')}
-            </Button>
-            {appliedSearch && (
-              <Button type="button" variant="ghost" onClick={onClearSearch}>
-                {t('home.catalog.clear')}
+          {/* Barra de busca + filtro de cidade, lado a lado (quebra em telas estreitas) */}
+          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+            {/* Busca via endpoint (campo + botão) */}
+            <form onSubmit={onSearchSubmit} className="flex flex-1 gap-2 sm:max-w-md">
+              <Input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder={t('home.catalog.searchPlaceholder')}
+              />
+              <Button type="submit" disabled={loading}>
+                <Search className="mr-1 h-4 w-4" />
+                {t('home.catalog.search')}
               </Button>
+              {appliedSearch && (
+                <Button type="button" variant="ghost" onClick={onClearSearch}>
+                  {t('home.catalog.clear')}
+                </Button>
+              )}
+            </form>
+
+            {/* Filtro por cidade de origem (opções da tabela institution) */}
+            {cities.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label htmlFor="city-filter" className="whitespace-nowrap text-sm font-medium">
+                  {t('home.catalog.cityFilter')}
+                </label>
+                <select
+                  id="city-filter"
+                  value={city}
+                  onChange={onCityChange}
+                  disabled={loading}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                >
+                  <option value="">{t('home.catalog.allCities')}</option>
+                  {cities.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
-          </form>
+          </div>
 
           {loading ? (
             <p className="text-sm text-muted-foreground">{t('home.catalog.loading')}</p>
           ) : error ? (
             <p className="text-sm text-destructive">{t('home.catalog.loadError')}</p>
+          ) : enterprises.length === 0 ? (
+            <p className="rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground">
+              {appliedSearch ? t('home.catalog.emptySearch') : t('home.catalog.empty')}
+            </p>
           ) : (
             <>
-              {groups.length > 0 && (
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {groups.map((g) => (
-                    <Button
-                      key={g.key}
-                      variant={g.key === activeCity ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => {
-                        setActiveCity(g.key)
-                        setOpenUuid(null)
-                      }}
-                    >
-                      {g.label}
-                      <span
-                        className={cn(
-                          'ml-2 rounded-full px-1.5 text-xs',
-                          g.key === activeCity
-                            ? 'bg-primary-foreground/20'
-                            : 'bg-muted text-muted-foreground'
-                        )}
-                      >
-                        {g.items.length}
-                      </span>
-                    </Button>
-                  ))}
-                </div>
-              )}
-
-              {!activeGroup || activeGroup.items.length === 0 ? (
-                <p className="rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground">
-                  {appliedSearch ? t('home.catalog.emptySearch') : t('home.catalog.empty')}
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {activeGroup.items.map((e) => (
+              <ul className="space-y-2">
+                {enterprises.map((e) => {
+                  const onToggle = () =>
+                    setOpenUuid((cur) => (cur === e.uuid ? null : e.uuid))
+                  // Professor/gestão veem a empresa com seus contratos (linha
+                  // expansível); aluno vê só os dados públicos.
+                  return canViewContracts ? (
+                    <MyEnterpriseRow
+                      key={e.uuid}
+                      enterprise={e}
+                      open={openUuid === e.uuid}
+                      onToggle={onToggle}
+                    />
+                  ) : (
                     <EnterpriseRow
                       key={e.uuid}
                       enterprise={e}
                       open={openUuid === e.uuid}
-                      onToggle={() =>
-                        setOpenUuid((cur) => (cur === e.uuid ? null : e.uuid))
-                      }
+                      onToggle={onToggle}
                     />
-                  ))}
-                </ul>
-              )}
+                  )
+                })}
+              </ul>
+
+              {/* Paginação: 10 por página, controlada pelo backend */}
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1 || loading}
+                  onClick={() => goToPage(page - 1)}
+                >
+                  <ChevronLeft className="mr-1 h-4 w-4" />
+                  {t('home.catalog.prev')}
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  {t('home.catalog.page', { page })}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!hasMore || loading}
+                  onClick={() => goToPage(page + 1)}
+                >
+                  {t('home.catalog.next')}
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
             </>
           )}
         </section>
       </main>
-    </div>
-  )
-}
-
-function formatAddress(e: {
-  street: string | null
-  number: string | null
-  neighborhood: string | null
-  city: string | null
-  state: string | null
-}): string {
-  const line = [e.street, e.number].filter(Boolean).join(', ')
-  const rest = [e.neighborhood, e.city, e.state].filter(Boolean).join(' · ')
-  return [line, rest].filter(Boolean).join(' — ')
-}
-
-function EnterpriseRow({
-  enterprise: e,
-  open,
-  onToggle,
-}: {
-  enterprise: Enterprise
-  open: boolean
-  onToggle: () => void
-}) {
-  const { t } = useTranslation()
-  const na = t('home.catalog.notProvided')
-  const address = formatAddress(e)
-
-  return (
-    <li className="overflow-hidden rounded-lg border bg-background">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
-      >
-        <div className="min-w-0">
-          <p className="truncate font-medium">{e.name}</p>
-          <p className="truncate text-sm text-muted-foreground">{address || na}</p>
-        </div>
-        <ChevronRight
-          className={cn(
-            'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-            open && 'rotate-90'
-          )}
-        />
-      </button>
-
-      {open && (
-        <dl className="grid gap-3 border-t px-4 py-3 text-sm sm:grid-cols-2">
-          <Detail icon={MapPin} label={t('home.catalog.address')} value={address || na} />
-          <Detail icon={User} label={t('home.catalog.responsible')} value={e.responsible_person || na} />
-          <Detail icon={Phone} label={t('home.catalog.phone')} value={e.phone_number || na} />
-        </dl>
-      )}
-    </li>
-  )
-}
-
-function MyEnterpriseRow({
-  enterprise: e,
-  open,
-  onToggle,
-}: {
-  enterprise: MyEnterprise
-  open: boolean
-  onToggle: () => void
-}) {
-  const { t } = useTranslation()
-  const na = t('home.catalog.notProvided')
-  const address = formatAddress(e)
-
-  return (
-    <li className="overflow-hidden rounded-lg border bg-background">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
-      >
-        <div className="min-w-0">
-          <p className="truncate font-medium">{e.name}</p>
-          <p className="truncate text-sm text-muted-foreground">{address || na}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          {e.status !== 'active' && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-              {t('home.mine.pending')}
-            </span>
-          )}
-          <span className="hidden text-xs text-muted-foreground sm:inline">
-            {t('home.mine.contractCount', { count: e.contracts.length })}
-          </span>
-          <ChevronRight
-            className={cn(
-              'h-4 w-4 text-muted-foreground transition-transform',
-              open && 'rotate-90'
-            )}
-          />
-        </div>
-      </button>
-
-      {open && (
-        <div className="space-y-4 border-t px-4 py-3">
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <Detail icon={MapPin} label={t('home.catalog.address')} value={address || na} />
-            <Detail icon={User} label={t('home.catalog.responsible')} value={e.responsible_person || na} />
-            <Detail icon={Phone} label={t('home.catalog.phone')} value={e.phone_number || na} />
-          </dl>
-
-          <div>
-            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('home.mine.contracts')}
-            </h4>
-            {e.contracts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('home.mine.noContracts')}</p>
-            ) : (
-              <ul className="space-y-2">
-                {e.contracts.map((c) => (
-                  <ContractItem key={c.uuid} contract={c} />
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
-    </li>
-  )
-}
-
-function docStatusClasses(status: string): string {
-  switch (status) {
-    case 'signed':
-      return 'bg-green-100 text-green-800'
-    case 'pending':
-      return 'bg-amber-100 text-amber-800'
-    case 'refused':
-      return 'bg-red-100 text-red-800'
-    case 'expired':
-      return 'bg-orange-100 text-orange-800'
-    case 'draft':
-    case 'archived':
-    default:
-      return 'bg-slate-100 text-slate-700'
-  }
-}
-
-function ContractItem({ contract: c }: { contract: Contract }) {
-  const { t, i18n } = useTranslation()
-  const due = c.due_date
-    ? new Date(c.due_date).toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'pt-BR')
-    : null
-
-  return (
-    <li className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2">
-      <div className="flex min-w-0 items-start gap-2">
-        <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{c.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {c.signature_status
-              ? t(`home.sigStatus.${c.signature_status}`, { defaultValue: c.signature_status })
-              : t('home.mine.signature')}
-            {due ? ` · ${t('home.mine.due')} ${due}` : ''}
-          </p>
-        </div>
-      </div>
-      <span
-        className={cn(
-          'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
-          docStatusClasses(c.status)
-        )}
-      >
-        {t(`home.docStatus.${c.status}`, { defaultValue: c.status })}
-      </span>
-    </li>
-  )
-}
-
-function Detail({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof MapPin
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex items-start gap-2">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-      <div className="min-w-0">
-        <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
-        <dd className="break-words">{value}</dd>
-      </div>
     </div>
   )
 }

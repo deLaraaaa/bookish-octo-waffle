@@ -5,9 +5,17 @@
     "backToLogin": "Back to login"
   },
   "roles": {
-    "aluno": "Student",
-    "professor": "Professor",
+    "STUDENT": "Student",
+    "TEACHER": "Professor",
+    "MANAGER": "Manager",
+    "ADMIN": "Administrator",
     "user": "user"
+  },
+  "enterpriseStatus": {
+    "pending": "Awaiting review",
+    "active": "Active",
+    "suspended": "Suspended",
+    "inactive": "Inactive"
   },
   "login": {
     "description": "Sign in using your official Católica SC e-mail.",
@@ -70,9 +78,13 @@
       "clear": "Clear",
       "loading": "Loading companies…",
       "loadError": "Could not load partner companies.",
-      "empty": "No partner companies in this city.",
+      "empty": "No partner companies registered.",
       "emptySearch": "No companies found.",
-      "otherCity": "Other",
+      "cityFilter": "Origin city",
+      "allCities": "All cities",
+      "prev": "Previous",
+      "next": "Next",
+      "page": "Page {{page}}",
       "count_one": "{{count}} company",
       "count_other": "{{count}} companies",
       "responsible": "Responsible",
@@ -138,6 +150,39 @@
       "pending_submission": "Awaiting submission",
       "waiting_signature": "Awaiting signature",
       "expired": "Signature expired"
+    }
+  },
+  "manage": {
+    "navLink": "Management",
+    "navLinkView": "Contracts",
+    "title": "Partnership management",
+    "titleView": "Company contracts",
+    "backToCatalog": "Back to catalog",
+    "statusFilter": "Status",
+    "allStatuses": "All statuses",
+    "loading": "Loading…",
+    "loadError": "Could not load management data.",
+    "pending": {
+      "title": "Pending approval",
+      "description": "Registrations awaiting review. Approve to publish in the catalog.",
+      "empty": "No companies awaiting review."
+    },
+    "all": {
+      "title": "All companies",
+      "description": "Full catalog, including pending, suspended and inactive.",
+      "empty": "No companies registered."
+    },
+    "status": {
+      "pending": "Pending",
+      "active": "Active",
+      "suspended": "Suspended",
+      "inactive": "Inactive"
+    },
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "suspend": "Suspend",
+      "activate": "Activate"
     }
   }
 }

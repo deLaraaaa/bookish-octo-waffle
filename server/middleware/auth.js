@@ -19,4 +19,15 @@ function requireAuth(req, res, next) {
   }
 }
 
-module.exports = { requireAuth };
+// Autorização por papel. Deve rodar depois de requireAuth (usa req.user.role).
+// A regra vive no backend: nunca confiar só na UI para esconder ações.
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+    next();
+  };
+}
+
+module.exports = { requireAuth, requireRole };

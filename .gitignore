@@ -70,6 +70,10 @@ web_modules/
 .env.*
 !.env.example
 
+# IDs descobertos no provisionamento do OneDrive/SharePoint (contêm identificadores do tenant)
+discovered-ids.env
+**/discovered-ids.env
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
@@ -143,3 +147,6 @@ server/uploads
 client/node_modules
 .DS_Store
 server/schema.sql
+
+# Saída dos demos locais (.docx gerados)
+server/scripts/out/

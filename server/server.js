@@ -9,6 +9,7 @@ const httpLogs = require('./http_logs.js');
 const authRoutes = require('./routes/auth');
 const institutionRoutes = require('./routes/institutions');
 const enterpriseRoutes = require('./routes/enterprises');
+const adminRoutes = require('./routes/admin');
 const app = express();
 
 app.use(cors());
@@ -23,6 +24,7 @@ app.get("/health", async (_req, res) => {
 app.use("/auth", authRoutes);
 app.use("/institutions", institutionRoutes);
 app.use("/enterprises", enterpriseRoutes);
+app.use("/admin", adminRoutes);
 
 const PORT = process.env.PORT || 4000;
 

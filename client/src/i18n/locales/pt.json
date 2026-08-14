@@ -5,9 +5,17 @@
     "backToLogin": "Voltar ao login"
   },
   "roles": {
-    "aluno": "Aluno(a)",
-    "professor": "Professor(a)",
+    "STUDENT": "Aluno(a)",
+    "TEACHER": "Professor(a)",
+    "MANAGER": "Gestor(a)",
+    "ADMIN": "Administrador(a)",
     "user": "usuário"
+  },
+  "enterpriseStatus": {
+    "pending": "Aguardando análise",
+    "active": "Ativa",
+    "suspended": "Suspensa",
+    "inactive": "Inativa"
   },
   "login": {
     "description": "Entre utilizando o e-mail oficial da Católica SC.",
@@ -70,9 +78,13 @@
       "clear": "Limpar",
       "loading": "Carregando empresas…",
       "loadError": "Não foi possível carregar as empresas parceiras.",
-      "empty": "Nenhuma empresa parceira nesta cidade.",
+      "empty": "Nenhuma empresa parceira cadastrada.",
       "emptySearch": "Nenhuma empresa encontrada.",
-      "otherCity": "Outras",
+      "cityFilter": "Cidade de origem",
+      "allCities": "Todas as cidades",
+      "prev": "Anterior",
+      "next": "Próxima",
+      "page": "Página {{page}}",
       "count_one": "{{count}} empresa",
       "count_other": "{{count}} empresas",
       "responsible": "Responsável",
@@ -138,6 +150,39 @@
       "pending_submission": "Aguardando envio",
       "waiting_signature": "Aguardando assinatura",
       "expired": "Assinatura expirada"
+    }
+  },
+  "manage": {
+    "navLink": "Gestão",
+    "navLinkView": "Contratos",
+    "title": "Gestão de parcerias",
+    "titleView": "Contratos das empresas",
+    "backToCatalog": "Voltar ao catálogo",
+    "statusFilter": "Status",
+    "allStatuses": "Todos os status",
+    "loading": "Carregando…",
+    "loadError": "Não foi possível carregar os dados de gestão.",
+    "pending": {
+      "title": "Pendentes de aprovação",
+      "description": "Cadastros aguardando análise. Aprove para publicar no catálogo.",
+      "empty": "Nenhuma empresa aguardando análise."
+    },
+    "all": {
+      "title": "Todas as empresas",
+      "description": "Catálogo completo, incluindo pendentes, suspensas e inativas.",
+      "empty": "Nenhuma empresa cadastrada."
+    },
+    "status": {
+      "pending": "Pendente",
+      "active": "Ativa",
+      "suspended": "Suspensa",
+      "inactive": "Inativa"
+    },
+    "actions": {
+      "approve": "Aprovar",
+      "reject": "Recusar",
+      "suspend": "Suspender",
+      "activate": "Ativar"
     }
   }
 }

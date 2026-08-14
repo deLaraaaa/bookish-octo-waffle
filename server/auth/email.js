@@ -55,7 +55,7 @@ async function sendVerificationCode(to, code) {
   } catch (e) {
     // Não derruba o fluxo se o SMTP falhar: registra o erro e o código no log
     // para que ainda seja possível concluir a verificação durante o desenvolvimento.
-    logger.error('two_factor_code_send_failed', { to, message: e.message });
+    logger.error('two_factor_code_send_failed', { to, error: e.message });
     logger.warn('two_factor_code_dev', { to, code });
     return { delivered: false, error: e.message };
   }

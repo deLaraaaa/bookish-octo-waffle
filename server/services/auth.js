@@ -31,7 +31,7 @@ function emailDomainAllowed(email) {
 }
 
 function roleForDomain(domain) {
-  return String(domain).toLowerCase().endsWith('edu.br') ? 'aluno' : 'professor';
+  return String(domain).toLowerCase().endsWith('edu.br') ? 'TEACHER' : 'STUDENT';
 }
 
 function frontendUrl(path, params = {}) {
@@ -51,6 +51,57 @@ function readPersonById(id) {
 async function readRoleId(name) {
   const r = await crud.read('role', { select: ['id'], where: { name } }, null, SYSTEM_USER);
   return r ? r.id : null;
+}
+
+async function roleNameById(id) {
+  if (id == null) return null;
+  const r = await crud.read('role', { select: ['name'], where: { id } }, null, SYSTEM_USER);
+  return r ? r.name : null;
+}
+
+// Resolve o papel do usuário em três degraus, do mais específico ao padrão:
+//   1) person.role_id definido  -> papel persistido (MANAGER/ADMIN)
+//   2) convite (role_invite) pendente para o e-mail -> aplica e consome o convite
+//   3) fallback: papel derivado do domínio do e-mail (STUDENT/TEACHER)
+// O degrau do convite vem DEPOIS do role_id: uma revogação/rebaixamento futuro em
+// person.role_id nunca é sobreposto por um convite antigo já consumido.
+async function resolveRole(person, email, domain) {
+  if (person.role_id != null) {
+    const name = await roleNameById(person.role_id);
+    if (name) return name;
+  }
+
+  const normalizedEmail = String(email || '').toLowerCase();
+  const invite = normalizedEmail
+    ? await crud.read(
+        'role_invite',
+        { where: { email: normalizedEmail, active: true, consumed_at: null } },
+        null,
+        SYSTEM_USER
+      )
+    : null;
+
+  if (invite) {
+    await crud.update(
+      'person',
+      { role_id: invite.role_id },
+      { where: { id: person.id } },
+      SYSTEM_USER
+    );
+    await crud.update(
+      'role_invite',
+      { consumed_at: new Date() },
+      { where: { id: invite.id } },
+      SYSTEM_USER
+    );
+    const name = await roleNameById(invite.role_id);
+    if (name) {
+      logger.info('role_invite_consumed', { person: person.uuid, role: name });
+      return name;
+    }
+  }
+
+  return roleForDomain(domain);
 }
 
 async function microsoftAuthUrl() {
@@ -129,12 +180,12 @@ async function handleMicrosoftCallback(query) {
     }
 
     const person = await readPersonById(identity.person_id);
-    const role = roleForDomain(identity.domain);
+    const role = await resolveRole(person, identity.email, identity.domain);
     const session = tokens.signSession(person, role, identity.email);
     logger.info('login_success', { person: person.uuid, role });
     return frontendUrl('/auth/callback', { token: session });
   } catch (e) {
-    logger.error('login_callback_error', { message: e.message });
+    logger.error('login_callback_error', { name: e.name, error: e.message, stack: e.stack });
     return frontendUrl('/login', { error: 'login_failed' });
   }
 }
@@ -166,7 +217,7 @@ async function verifyTwoFactor({ challenge, code }) {
   );
 
   const person = await readPersonById(identity.person_id);
-  const role = roleForDomain(identity.domain);
+  const role = await resolveRole(person, identity.email, identity.domain);
   logger.info('2fa_success', { person: person.uuid, role });
   return { token: tokens.signSession(person, role, identity.email) };
 }
