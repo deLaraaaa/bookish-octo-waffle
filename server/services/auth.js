@@ -5,6 +5,7 @@ const crud = require('../crud');
 const tokens = require('../auth/jwt');
 const microsoft = require('../auth/microsoft');
 const twofactor = require('../auth/twofactor');
+const graphToken = require('./graphToken');
 const logger = require('../logger');
 
 const SYSTEM_USER = 'system:auth';
@@ -165,6 +166,15 @@ async function handleMicrosoftCallback(query) {
     }
 
     const { identity, isNewIdentity } = await resolveIdentity(profile);
+
+    // Guarda o refresh token do Graph pra agir no OneDrive do usuário depois do login.
+    if (tokenSet.refresh_token) {
+      try {
+        await graphToken.saveRefreshToken(identity.id, tokenSet.refresh_token, tokenSet.scope);
+      } catch (e) {
+        logger.warn('graph_token_save_failed', { identity: identity.uuid, error: e.message });
+      }
+    }
 
     logger.info('login_identity', {
       oid: profile.oid,

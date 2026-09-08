@@ -158,6 +158,10 @@
     "title": "Partnership management",
     "titleView": "Company contracts",
     "backToCatalog": "Back to catalog",
+    "tabs": {
+      "enterprises": "Companies",
+      "templates": "Templates & Contracts"
+    },
     "statusFilter": "Status",
     "allStatuses": "All statuses",
     "loading": "Loading…",
@@ -182,7 +186,76 @@
       "approve": "Approve",
       "reject": "Reject",
       "suspend": "Suspend",
-      "activate": "Activate"
+      "activate": "Activate",
+      "linkContract": "Link contract"
+    },
+    "contract": {
+      "view": "View",
+      "download": "Download",
+      "viewError": "Could not open the contract.",
+      "downloadError": "Could not download the contract.",
+      "statusUpdated": "Contract status updated.",
+      "statusError": "Could not update the status."
+    }
+  },
+  "templates": {
+    "sectionTitle": "Templates & Contracts",
+    "sectionDescription": "Contract templates with dynamic variables and the generated contracts — all in OneDrive.",
+    "templates": {
+      "title": "Templates",
+      "description": "Import a .docx template with variables to generate contracts from it.",
+      "import": "Import template",
+      "importing": "Uploading…",
+      "importSuccess": "Template imported.",
+      "importError": "Could not import the template.",
+      "sync": "Merge",
+      "syncHint": "Syncs the OneDrive folder with the system (adds new files, removes missing ones).",
+      "syncDone": "Merged: {{added}} added, {{removed}} removed.",
+      "syncError": "Could not merge the templates.",
+      "variableCount_one": "{{count}} variable",
+      "variableCount_other": "{{count}} variables",
+      "empty": "No templates yet.",
+      "loadError": "Could not load templates.",
+      "generate": "Generate contract"
+    },
+    "contracts": {
+      "title": "Generated contracts",
+      "description": "Filled documents in the OneDrive \"Contratos Gerados\" folder.",
+      "empty": "No contracts generated yet.",
+      "loadError": "Could not load contracts.",
+      "refresh": "Refresh",
+      "status": "Contract status",
+      "statusUpdated": "Status updated.",
+      "statusError": "Could not update the status."
+    },
+    "generate": {
+      "title": "Generate contract",
+      "fromTemplate": "Template: {{name}}",
+      "enterprise": "Company (optional)",
+      "enterpriseHint": "Fills the variables with the company's data and links the contract to it.",
+      "selectEnterprise": "Select a company…",
+      "willLink": "The contract will be linked to this company.",
+      "prefilled": "Fields filled from the company — review and complete the rest.",
+      "outName": "File name",
+      "outNameHint": "No extension — the system adds .docx/.pdf.",
+      "asPdf": "Also generate a PDF",
+      "noVariables": "This template has no variables — the contract matches the template.",
+      "submit": "Generate contract",
+      "submitting": "Generating…",
+      "success": "Contract generated.",
+      "error": "Could not generate the contract.",
+      "missingName": "Enter a file name.",
+      "missingVariables": "Fill in all template variables."
+    },
+    "link": {
+      "title": "Link contract",
+      "fromEnterprise": "Company: {{name}}",
+      "description": "Pick an already-generated contract that isn't linked to any company yet.",
+      "empty": "No loose contracts — they are all linked.",
+      "loadError": "Could not load contracts.",
+      "link": "Link",
+      "success": "Contract linked to the company.",
+      "error": "Could not link the contract."
     }
   }
 }

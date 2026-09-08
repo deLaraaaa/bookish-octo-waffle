@@ -10,6 +10,7 @@ const authRoutes = require('./routes/auth');
 const institutionRoutes = require('./routes/institutions');
 const enterpriseRoutes = require('./routes/enterprises');
 const adminRoutes = require('./routes/admin');
+const storageRoutes = require('./routes/storage');
 const app = express();
 
 app.use(cors());
@@ -25,6 +26,7 @@ app.use("/auth", authRoutes);
 app.use("/institutions", institutionRoutes);
 app.use("/enterprises", enterpriseRoutes);
 app.use("/admin", adminRoutes);
+app.use("/storage", storageRoutes);
 
 const PORT = process.env.PORT || 4000;
 

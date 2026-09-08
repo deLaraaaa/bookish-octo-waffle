@@ -6,7 +6,8 @@
 
 const TENANT = process.env.AZURE_TENANT_ID || 'common';
 const AUTHORITY = `https://login.microsoftonline.com/${TENANT}`;
-const SCOPE = 'openid profile email User.Read';
+// offline_access -> refresh token; Files.ReadWrite -> gravar no OneDrive do usuário.
+const SCOPE = 'openid profile email User.Read offline_access Files.ReadWrite';
 
 function config() {
   return {
@@ -62,6 +63,32 @@ async function exchangeCode(code) {
   return res.json(); // { access_token, id_token, expires_in, ... }
 }
 
+// Troca um refresh_token por um access_token novo (o Graph também rotaciona o
+// refresh_token — o chamador deve regravar o novo).
+async function refreshToken(refresh) {
+  const c = config();
+  const body = new URLSearchParams({
+    client_id: c.clientId,
+    client_secret: c.clientSecret,
+    grant_type: 'refresh_token',
+    refresh_token: refresh,
+    scope: SCOPE
+  });
+
+  const res = await fetch(`${AUTHORITY}/oauth2/v2.0/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Refresh failed (${res.status}): ${detail}`);
+  }
+
+  return res.json(); // { access_token, refresh_token, expires_in, ... }
+}
+
 async function fetchProfile(accessToken) {
   const select = ['id', 'displayName', 'mail', 'userPrincipalName'].join(',');
   const res = await fetch(`https://graph.microsoft.com/v1.0/me?$select=${encodeURIComponent(select)}`, {
@@ -83,4 +110,4 @@ async function fetchProfile(accessToken) {
   };
 }
 
-module.exports = { isConfigured, authorizeUrl, exchangeCode, fetchProfile };
+module.exports = { isConfigured, authorizeUrl, exchangeCode, refreshToken, fetchProfile };

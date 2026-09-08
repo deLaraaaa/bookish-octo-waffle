@@ -204,13 +204,25 @@ async function contractsByEnterprise(actor, entIds) {
     ? await crud.list(
         'document',
         {
-          select: ['id', 'uuid', 'name', 'status', 'due_date', 'signature_id'],
+          select: ['id', 'uuid', 'name', 'status', 'due_date', 'signature_id', 'file_resource_id'],
           where: { id: { op: 'in', value: docIds } }
         },
         null,
         actor
       )
     : [];
+
+  // Referência do arquivo no OneDrive (file_resource.file_path = 'onedrive:<itemId>').
+  const frIds = documents.map((d) => d.file_resource_id).filter((v) => v != null);
+  const fileResources = frIds.length
+    ? await crud.list(
+        'file_resource',
+        { select: ['id', 'file_path'], where: { id: { op: 'in', value: frIds } } },
+        null,
+        actor
+      )
+    : [];
+  const frById = new Map(fileResources.map((f) => [f.id, f]));
 
   const sigIds = documents.map((d) => d.signature_id).filter((v) => v != null);
   const signatures = sigIds.length
@@ -233,6 +245,9 @@ async function contractsByEnterprise(actor, entIds) {
     const doc = docById.get(l.document_id);
     if (!doc) continue;
     const sig = doc.signature_id != null ? sigById.get(doc.signature_id) : null;
+    const fr = doc.file_resource_id != null ? frById.get(doc.file_resource_id) : null;
+    const fp = fr && fr.file_path ? String(fr.file_path) : null;
+    const item_id = fp && fp.startsWith('onedrive:') ? fp.slice('onedrive:'.length) : null;
     const arr = byEnt.get(l.enterprise_id) || [];
     arr.push({
       uuid: doc.uuid,
@@ -242,7 +257,8 @@ async function contractsByEnterprise(actor, entIds) {
       is_primary: l.is_primary,
       due_date: doc.due_date,
       signature_status: sig ? sig.status : null,
-      signed_date: sig ? sig.signed_date : null
+      signed_date: sig ? sig.signed_date : null,
+      item_id // itemId do OneDrive quando o contrato mora lá; null caso contrário
     });
     byEnt.set(l.enterprise_id, arr);
   }
@@ -289,6 +305,25 @@ async function listMine(user) {
   if (!person) return [];
 
   return withContracts(actor, { active: true, created_by_person_id: person.id });
+}
+
+// Todas as empresas ativas (mínimo para seleção em dropdowns), sem paginação.
+// Inclui os campos usados para pré-preencher variáveis de contrato.
+async function listAllSelectable(user) {
+  const actor = user || SYSTEM_USER;
+  return crud.list(
+    'enterprise',
+    {
+      select: [
+        'uuid', 'name', 'cnpj', 'responsible_person', 'phone_number',
+        'street', 'number', 'neighborhood', 'city', 'state', 'zip_code', 'contact_email'
+      ],
+      where: { active: true },
+      orderBy: [{ column: 'name', direction: 'ASC' }]
+    },
+    null,
+    actor
+  );
 }
 
 // Transições/valores de status válidos (usado nos filtros e em updateStatus).
@@ -487,6 +522,7 @@ module.exports = {
   listMine,
   listPending,
   listManage,
+  listAllSelectable,
   updateStatus,
   lookupCnpj,
   create

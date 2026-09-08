@@ -110,6 +110,24 @@ export type Contract = {
   due_date: string | null
   signature_status: string | null
   signed_date: string | null
+  // itemId do OneDrive quando o contrato mora lá (habilita ver/baixar); null caso contrário.
+  item_id?: string | null
+}
+
+// Empresa em forma mínima para dropdowns de seleção (com campos de pré-preenchimento).
+export type EnterpriseOption = {
+  uuid: string
+  name: string
+  cnpj: string | null
+  responsible_person: string | null
+  phone_number: string | null
+  street: string | null
+  number: string | null
+  neighborhood: string | null
+  city: string | null
+  state: string | null
+  zip_code: string | null
+  contact_email: string | null
 }
 
 // Empresa criada pelo próprio usuário — inclui os contratos e seus status.
@@ -163,4 +181,61 @@ export async function apiForm<T = unknown>(path: string, form: FormData): Promis
     throw new Error(message)
   }
   return data as T
+}
+
+// ---- Templates & contratos (OneDrive) ----
+export type Template = {
+  uuid: string
+  name: string
+  variables: string[]
+  insert_date?: string
+}
+
+export type GeneratedContract = {
+  id: string
+  name: string
+  size: number
+  modified: string
+  document_uuid?: string | null
+  status?: string | null
+}
+
+// Contrato gerado ainda não vinculado a nenhuma empresa (referenciado pelo itemId).
+export type LinkableContract = {
+  itemId: string
+  name: string
+  size: number
+  modified: string
+}
+
+// Baixa um arquivo autenticado (proxy do backend) e dispara o download no browser.
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const token = getToken()
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) throw new Error(`Erro ${res.status}`)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+// Abre um arquivo autenticado numa nova aba (ex.: visualizar o PDF do contrato).
+export async function viewFile(path: string): Promise<void> {
+  const token = getToken()
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) throw new Error(`Erro ${res.status}`)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank', 'noopener')
+  // Revoga depois de um tempo para a nova aba conseguir carregar o conteúdo.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }

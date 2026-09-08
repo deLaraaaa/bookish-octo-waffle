@@ -70,6 +70,15 @@ router.get('/manage', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, 
   }
 });
 
+// Todas as empresas ativas (mínimo) para seleção em dropdowns da gestão.
+router.get('/all', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
+  try {
+    res.send(await enterprise.listAllSelectable(req.user));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
 // Aprovar/suspender: transição de estado da empresa (pending -> active, etc).
 router.patch('/:uuid/status', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
   try {

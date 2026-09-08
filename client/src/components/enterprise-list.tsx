@@ -86,12 +86,15 @@ export function MyEnterpriseRow({
   onToggle,
   statusLabel,
   actions,
+  contractControls,
 }: {
   enterprise: EnterpriseCard
   open: boolean
   onToggle: () => void
   statusLabel?: string
   actions?: ReactNode
+  // Controles por contrato (ver/baixar/status) — usados só na gestão.
+  contractControls?: (contract: Contract) => ReactNode
 }) {
   const { t } = useTranslation()
   const na = t('home.catalog.notProvided')
@@ -151,7 +154,7 @@ export function MyEnterpriseRow({
             ) : (
               <ul className="space-y-2">
                 {contracts.map((c) => (
-                  <ContractItem key={c.uuid} contract={c} />
+                  <ContractItem key={c.uuid} contract={c} controls={contractControls?.(c)} />
                 ))}
               </ul>
             )}
@@ -181,7 +184,13 @@ function docStatusClasses(status: string): string {
   }
 }
 
-export function ContractItem({ contract: c }: { contract: Contract }) {
+export function ContractItem({
+  contract: c,
+  controls,
+}: {
+  contract: Contract
+  controls?: ReactNode
+}) {
   const { t, i18n } = useTranslation()
   const due = c.due_date
     ? new Date(c.due_date).toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'pt-BR')
@@ -201,14 +210,17 @@ export function ContractItem({ contract: c }: { contract: Contract }) {
           </p>
         </div>
       </div>
-      <span
-        className={cn(
-          'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
-          docStatusClasses(c.status)
-        )}
-      >
-        {t(`home.docStatus.${c.status}`, { defaultValue: c.status })}
-      </span>
+      {/* Gestão passa controles (ver/baixar/status); demais telas mostram só o selo. */}
+      {controls ?? (
+        <span
+          className={cn(
+            'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
+            docStatusClasses(c.status)
+          )}
+        >
+          {t(`home.docStatus.${c.status}`, { defaultValue: c.status })}
+        </span>
+      )}
     </li>
   )
 }

@@ -158,6 +158,10 @@
     "title": "Gestão de parcerias",
     "titleView": "Contratos das empresas",
     "backToCatalog": "Voltar ao catálogo",
+    "tabs": {
+      "enterprises": "Empresas",
+      "templates": "Templates & Contratos"
+    },
     "statusFilter": "Status",
     "allStatuses": "Todos os status",
     "loading": "Carregando…",
@@ -182,7 +186,76 @@
       "approve": "Aprovar",
       "reject": "Recusar",
       "suspend": "Suspender",
-      "activate": "Ativar"
+      "activate": "Ativar",
+      "linkContract": "Vincular contrato"
+    },
+    "contract": {
+      "view": "Ver",
+      "download": "Baixar",
+      "viewError": "Não foi possível abrir o contrato.",
+      "downloadError": "Não foi possível baixar o contrato.",
+      "statusUpdated": "Status do contrato atualizado.",
+      "statusError": "Não foi possível atualizar o status."
+    }
+  },
+  "templates": {
+    "sectionTitle": "Templates & Contratos",
+    "sectionDescription": "Modelos de contrato com variáveis dinâmicas e os contratos gerados — tudo no OneDrive.",
+    "templates": {
+      "title": "Modelos",
+      "description": "Modelos .docx com variáveis. Importe um modelo para gerar contratos a partir dele.",
+      "import": "Importar modelo",
+      "importing": "Enviando…",
+      "importSuccess": "Modelo importado.",
+      "importError": "Não foi possível importar o modelo.",
+      "sync": "Mesclar",
+      "syncHint": "Sincroniza a pasta do OneDrive com o sistema (adiciona arquivos novos, remove os que sumiram).",
+      "syncDone": "Mesclado: {{added}} adicionado(s), {{removed}} removido(s).",
+      "syncError": "Não foi possível mesclar os modelos.",
+      "variableCount_one": "{{count}} variável",
+      "variableCount_other": "{{count}} variáveis",
+      "empty": "Nenhum modelo cadastrado ainda.",
+      "loadError": "Não foi possível carregar os modelos.",
+      "generate": "Gerar contrato"
+    },
+    "contracts": {
+      "title": "Contratos gerados",
+      "description": "Documentos já preenchidos, na pasta \"Contratos Gerados\" do OneDrive.",
+      "empty": "Nenhum contrato gerado ainda.",
+      "loadError": "Não foi possível carregar os contratos.",
+      "refresh": "Atualizar",
+      "status": "Status do contrato",
+      "statusUpdated": "Status atualizado.",
+      "statusError": "Não foi possível atualizar o status."
+    },
+    "generate": {
+      "title": "Gerar contrato",
+      "fromTemplate": "Modelo: {{name}}",
+      "enterprise": "Empresa (opcional)",
+      "enterpriseHint": "Preenche as variáveis com os dados da empresa e vincula o contrato a ela.",
+      "selectEnterprise": "Selecione uma empresa…",
+      "willLink": "O contrato será vinculado a esta empresa.",
+      "prefilled": "Campos preenchidos a partir da empresa — confira e complete o resto.",
+      "outName": "Nome do arquivo",
+      "outNameHint": "Sem extensão — o sistema adiciona .docx/.pdf.",
+      "asPdf": "Gerar também em PDF",
+      "noVariables": "Este modelo não tem variáveis — o contrato sai igual ao modelo.",
+      "submit": "Gerar contrato",
+      "submitting": "Gerando…",
+      "success": "Contrato gerado.",
+      "error": "Não foi possível gerar o contrato.",
+      "missingName": "Informe o nome do arquivo.",
+      "missingVariables": "Preencha todas as variáveis do modelo."
+    },
+    "link": {
+      "title": "Vincular contrato",
+      "fromEnterprise": "Empresa: {{name}}",
+      "description": "Escolha um contrato já gerado que ainda não está vinculado a nenhuma empresa.",
+      "empty": "Nenhum contrato solto — todos já estão vinculados.",
+      "loadError": "Não foi possível carregar os contratos.",
+      "link": "Vincular",
+      "success": "Contrato vinculado à empresa.",
+      "error": "Não foi possível vincular o contrato."
     }
   }
 }

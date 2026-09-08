@@ -1,14 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
-import { api, type Institution, type MyEnterprise, type Paginated } from '@/lib/api'
+import { ChevronLeft, ChevronRight, Download, Eye, Search } from 'lucide-react'
+import { toast } from 'sonner'
+import {
+  api,
+  downloadFile,
+  viewFile,
+  type Contract,
+  type Institution,
+  type MyEnterprise,
+  type Paginated,
+} from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { MyEnterpriseRow } from '@/components/enterprise-list'
+import { TemplatesContracts } from '@/components/templates-contracts'
+import { LinkContractModal } from '@/components/link-contract-modal'
 import { Logo } from '@/style'
+
+const DOC_STATUSES = ['draft', 'pending', 'signed', 'refused', 'expired', 'archived'] as const
 
 type EnterpriseStatus = 'pending' | 'active' | 'suspended' | 'inactive'
 const STATUS_OPTIONS: EnterpriseStatus[] = ['pending', 'active', 'suspended', 'inactive']
@@ -17,6 +30,8 @@ export default function Manage() {
   const { t } = useTranslation()
   const { account, logout } = useAuth()
 
+  const [tab, setTab] = useState<'enterprises' | 'templates'>('enterprises')
+  const [linkFor, setLinkFor] = useState<{ uuid: string; name: string } | null>(null)
   const [cities, setCities] = useState<string[]>([])
   const [openUuid, setOpenUuid] = useState<string | null>(null)
   const [busyUuid, setBusyUuid] = useState<string | null>(null)
@@ -95,6 +110,79 @@ export default function Manage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Ao voltar para a aba Empresas, re-busca (reflete contratos vinculados/status
+  // mexidos na aba de Templates). A aba Templates se recarrega ao remontar.
+  const firstTabRender = useRef(true)
+  useEffect(() => {
+    if (firstTabRender.current) {
+      firstTabRender.current = false
+      return
+    }
+    if (tab === 'enterprises') {
+      fetchAll(allSearch, allPage, allCity, allStatus)
+      fetchPending(pendingSearch, pendingPage)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab])
+
+  // Atualização MANUAL do status de um contrato (interim até o Webdox).
+  async function updateContractStatus(documentUuid: string, status: string) {
+    try {
+      await api(`/storage/contracts/${documentUuid}/status`, { method: 'PATCH', body: { status }, auth: true })
+      toast.success(t('manage.contract.statusUpdated'))
+      fetchAll(allSearch, allPage, allCity, allStatus)
+      fetchPending(pendingSearch, pendingPage)
+    } catch {
+      toast.error(t('manage.contract.statusError'))
+    }
+  }
+
+  // Controles por contrato na gestão: ver, baixar e mudar o status manualmente.
+  function contractControls(c: Contract) {
+    const proxy = c.item_id
+      ? `/storage/download/${c.item_id}?name=${encodeURIComponent(c.name)}`
+      : null
+    return (
+      <div className="flex shrink-0 items-center gap-1">
+        {proxy && (
+          <>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0"
+              title={t('manage.contract.view')}
+              onClick={() => viewFile(proxy).catch(() => toast.error(t('manage.contract.viewError')))}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0"
+              title={t('manage.contract.download')}
+              onClick={() => downloadFile(proxy, c.name).catch(() => toast.error(t('manage.contract.downloadError')))}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </>
+        )}
+        <select
+          value={c.status}
+          onChange={(e) => updateContractStatus(c.uuid, e.target.value)}
+          className="h-7 rounded-md border border-input bg-background px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          {DOC_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {t(`home.docStatus.${s}`)}
+            </option>
+          ))}
+        </select>
+      </div>
+    )
+  }
+
   // Transição de estado (aprovar/suspender/etc); recarrega as duas listas
   // preservando os filtros/paginação atuais.
   async function setStatus(uuid: string, status: EnterpriseStatus) {
@@ -115,26 +203,37 @@ export default function Manage() {
   function actionsFor(e: MyEnterprise) {
     const status = e.status as EnterpriseStatus
     const busy = busyUuid === e.uuid
-    if (status === 'pending') {
-      return [
-        <Button key="approve" size="sm" disabled={busy} onClick={() => setStatus(e.uuid, 'active')}>
-          {t('manage.actions.approve')}
-        </Button>,
-        <Button key="reject" size="sm" variant="outline" disabled={busy} onClick={() => setStatus(e.uuid, 'inactive')}>
-          {t('manage.actions.reject')}
-        </Button>,
-      ]
-    }
-    if (status === 'active') {
-      return [
-        <Button key="suspend" size="sm" variant="outline" disabled={busy} onClick={() => setStatus(e.uuid, 'suspended')}>
-          {t('manage.actions.suspend')}
-        </Button>,
-      ]
-    }
+    const statusButtons =
+      status === 'pending'
+        ? [
+            <Button key="approve" size="sm" disabled={busy} onClick={() => setStatus(e.uuid, 'active')}>
+              {t('manage.actions.approve')}
+            </Button>,
+            <Button key="reject" size="sm" variant="outline" disabled={busy} onClick={() => setStatus(e.uuid, 'inactive')}>
+              {t('manage.actions.reject')}
+            </Button>,
+          ]
+        : status === 'active'
+        ? [
+            <Button key="suspend" size="sm" variant="outline" disabled={busy} onClick={() => setStatus(e.uuid, 'suspended')}>
+              {t('manage.actions.suspend')}
+            </Button>,
+          ]
+        : [
+            <Button key="activate" size="sm" disabled={busy} onClick={() => setStatus(e.uuid, 'active')}>
+              {t('manage.actions.activate')}
+            </Button>,
+          ]
+
     return [
-      <Button key="activate" size="sm" disabled={busy} onClick={() => setStatus(e.uuid, 'active')}>
-        {t('manage.actions.activate')}
+      ...statusButtons,
+      <Button
+        key="link"
+        size="sm"
+        variant="outline"
+        onClick={() => setLinkFor({ uuid: e.uuid, name: e.name })}
+      >
+        {t('manage.actions.linkContract')}
       </Button>,
     ]
   }
@@ -167,7 +266,28 @@ export default function Manage() {
         </div>
       </header>
 
-      <main className="container space-y-10 py-8">
+      <main className="container py-8">
+        {/* Abas: separa gestão de empresas do motor de templates/contratos. */}
+        <div className="mb-6 flex gap-6 border-b">
+          {(['enterprises', 'templates'] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={
+                'relative -mb-px border-b-2 px-1 pb-3 text-sm font-medium transition-colors ' +
+                (tab === key
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground')
+              }
+            >
+              {t(`manage.tabs.${key}`)}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'enterprises' && (
+        <div className="space-y-10">
         {/* ===================== Pendentes de aprovação ===================== */}
         <section>
           <div className="mb-4">
@@ -226,6 +346,7 @@ export default function Manage() {
                     open={openUuid === e.uuid}
                     onToggle={() => toggle(e.uuid)}
                     actions={actionsFor(e)}
+                    contractControls={contractControls}
                   />
                 ))}
               </ul>
@@ -355,6 +476,7 @@ export default function Manage() {
                     open={openUuid === e.uuid}
                     onToggle={() => toggle(e.uuid)}
                     actions={actionsFor(e)}
+                    contractControls={contractControls}
                   />
                 ))}
               </ul>
@@ -371,7 +493,21 @@ export default function Manage() {
             </>
           )}
         </section>
+        </div>
+        )}
+
+        {/* ===================== Templates & Contratos ===================== */}
+        {tab === 'templates' && <TemplatesContracts />}
       </main>
+
+      <LinkContractModal
+        enterprise={linkFor}
+        onClose={() => setLinkFor(null)}
+        onLinked={() => {
+          fetchAll(allSearch, allPage, allCity, allStatus)
+          fetchPending(pendingSearch, pendingPage)
+        }}
+      />
     </div>
   )
 }

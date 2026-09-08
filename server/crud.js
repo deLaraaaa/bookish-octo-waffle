@@ -83,6 +83,10 @@ const SCHEMA = Object.freeze({
     'active'
   ],
 
+  ms_oauth_token: ['id', 'identity_id', 'refresh_token', 'scope', 'updated_at'],
+
+  template: ['id', 'uuid', 'name', 'storage_provider', 'file_path', 'variables', 'insert_date', 'active'],
+
   signature: ['id', 'uuid', 'status', 'signed_date', 'insert_date', 'active'],
 
   file_resource: [
