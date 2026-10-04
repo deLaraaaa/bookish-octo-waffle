@@ -2,6 +2,7 @@
 'use strict';
 
 const crud = require('../crud');
+const audit = require('./audit');
 
 const SYSTEM_USER = 'system:app';
 
@@ -92,38 +93,49 @@ const CATALOG_FIELDS = [
 
 const PAGE_SIZE = 10;
 
-// Catálogo público de parcerias: lista as empresas ativas com o endereço e
-// contato, já resolvendo a cidade a partir da instituição (institution) à qual
-// cada empresa pertence.
+// Comparação de cidades sem acentos/caixa ("JARAGUA DO SUL" == "Jaraguá do Sul").
+const normalizeCity = (s) =>
+  String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+// Um contrato "em dia": documento de contrato assinado (documento e assinatura)
+// e dentro da vigência (sem due_date ou com due_date no futuro).
+function hasActiveContract(contracts) {
+  const now = Date.now();
+  return (contracts || []).some(
+    (c) =>
+      c.doc_type === 'contract' &&
+      c.status === 'signed' &&
+      c.signature_status === 'signed' &&
+      (!c.due_date || new Date(c.due_date).getTime() >= now)
+  );
+}
+
+// Catálogo público de parcerias: lista APENAS empresas ativas com contrato
+// assinado e em vigência, com endereço e contato, resolvendo a cidade a partir
+// da instituição (institution) à qual cada empresa pertence. Não expõe status
+// nem contratos — para isso existem as visões de gestão (/manage, /pending).
 //
 // Paginado: retorna no máximo PAGE_SIZE (10) empresas por página.
 // opts.search: filtro por nome (ILIKE), feito no banco — não no frontend.
-// opts.city: filtro por cidade de origem (exato); as opções vêm da tabela
-//   institution no frontend. Vazio = todas as cidades.
+// opts.city: filtro pela cidade exibida (instituição, fallback empresa), sem
+//   acentos/caixa; as opções vêm da tabela institution no frontend. Vazio = todas.
 // opts.page: página 1-based (default 1).
 //
-// Retorno: { items, page, pageSize, hasMore }. Para saber se existe próxima
-// página sem uma query de COUNT extra, buscamos PAGE_SIZE + 1 linhas: se vier
-// a linha "a mais", há próxima página (e ela é descartada do resultado).
+// Retorno: { items, page, pageSize, hasMore }. O filtro "contrato em dia"
+// depende dos documentos, então a paginação é feita em memória sobre o
+// conjunto já filtrado.
 async function list(user, opts = {}) {
   const actor = user || SYSTEM_USER;
-  const privileged = isPrivileged(user);
 
   const page = Math.max(1, Math.floor(Number(opts.page)) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
-  // Aluno vê só parcerias ativas. Papéis privilegiados (professor/gestão) veem
-  // empresas em qualquer status — o filtro é decidido pelo papel do JWT.
-  const where = { active: true };
-  if (!privileged) where.status = 'active';
+  const where = { active: true, status: 'active' };
   const search = typeof opts.search === 'string' ? opts.search.trim() : '';
   if (search) {
     where.name = { op: 'ilike', value: `%${search}%` };
   }
   const city = typeof opts.city === 'string' ? opts.city.trim() : '';
-  if (city) {
-    where.city = city;
-  }
 
   const [institutions, rows] = await Promise.all([
     crud.list(
@@ -138,50 +150,45 @@ async function list(user, opts = {}) {
         // 'id' é usado apenas para juntar os contratos; não vai para o retorno.
         select: ['id', ...CATALOG_FIELDS],
         where,
-        orderBy: [{ column: 'name', direction: 'ASC' }],
-        limit: PAGE_SIZE + 1,
-        offset
+        orderBy: [{ column: 'name', direction: 'ASC' }]
       },
       null,
       actor
     )
   ]);
 
-  const hasMore = rows.length > PAGE_SIZE;
-  const pageRows = hasMore ? rows.slice(0, PAGE_SIZE) : rows;
-
   const byId = new Map(institutions.map((i) => [i.id, i]));
 
-  // Contratos só são anexados para papéis privilegiados. Para aluno, a chave
-  // 'contracts' sequer existe no retorno — não há como vazar contrato alheio.
-  const contracts = privileged
-    ? await contractsByEnterprise(actor, pageRows.map((e) => e.id))
-    : null;
+  const contracts = await contractsByEnterprise(actor, rows.map((e) => e.id));
+  let eligible = rows.filter((e) => hasActiveContract(contracts.get(e.id)));
+
+  // O filtro de cidade compara a MESMA cidade que o catálogo exibe (instituição,
+  // com fallback para a da empresa), ignorando acentos/caixa — cadastros vindos
+  // da BrasilAPI chegam como "JARAGUA DO SUL".
+  if (city) {
+    const target = normalizeCity(city);
+    eligible = eligible.filter((e) => {
+      const inst = e.institution_id != null ? byId.get(e.institution_id) : null;
+      return normalizeCity(inst?.city || e.city) === target;
+    });
+  }
+
+  const hasMore = eligible.length > offset + PAGE_SIZE;
+  const pageRows = eligible.slice(offset, offset + PAGE_SIZE);
 
   const items = pageRows.map((e) => {
     const inst = e.institution_id != null ? byId.get(e.institution_id) : null;
-    const { id, institution_id, ...rest } = e;
-    const item = {
+    const { id, institution_id, status, ...rest } = e;
+    return {
       ...rest,
       // Cidade vem da instituição; cai para a cidade da própria empresa quando
       // ela não está vinculada a nenhuma instituição.
       city: inst?.city || rest.city || null,
       institution: inst ? { name: inst.name, city: inst.city } : null
     };
-    return privileged ? { ...item, contracts: contracts.get(id) || [] } : item;
   });
 
   return { items, page, pageSize: PAGE_SIZE, hasMore };
-}
-
-// Papéis que podem ver contratos de todas as empresas. STUDENT nunca vê
-// contratos alheios — só os das próprias empresas ("Minhas empresas").
-const PRIVILEGED_ROLES = new Set(['TEACHER', 'MANAGER', 'ADMIN']);
-
-// Deriva o privilégio SEMPRE do papel assinado no JWT (req.user.role), nunca de
-// parâmetro do cliente — o front não consegue forjar acesso a contratos.
-function isPrivileged(user) {
-  return !!user && PRIVILEGED_ROLES.has(user.role);
 }
 
 // Agrega contratos (empresa -> documentos -> assinatura) para um conjunto de
@@ -404,12 +411,20 @@ async function listManage(user, opts = {}) {
   return paginateWithContracts(actor, where, page);
 }
 
-// Aprovação/mudança de status pelo Gestor. Valida o valor do enum e atualiza por
-// uuid. Ponto natural para o log de auditoria (quem aprovou, quando).
-async function updateStatus(user, uuid, status) {
+// Aprovação/mudança de status pelo Gestor. Valida o valor do enum, atualiza por
+// uuid e registra na trilha de auditoria (quem mudou, de quê para quê).
+async function updateStatus(user, uuid, status, requestId) {
   const actor = user || SYSTEM_USER;
   if (!uuid) throw new HttpError(400, 'uuid_required');
   if (!ENTERPRISE_STATUSES.has(status)) throw new HttpError(400, 'invalid_status');
+
+  const current = await crud.read(
+    'enterprise',
+    { select: ['name', 'status'], where: { uuid } },
+    null,
+    actor
+  );
+  if (!current) throw new HttpError(404, 'enterprise_not_found');
 
   const rows = await crud.update(
     'enterprise',
@@ -418,13 +433,22 @@ async function updateStatus(user, uuid, status) {
     actor
   );
   if (!rows[0]) throw new HttpError(404, 'enterprise_not_found');
+
+  if (current.status !== status) {
+    await audit.record(user, 'enterprise.status', {
+      entity: 'enterprise',
+      ref: current.name,
+      detail: { uuid, from: current.status, to: status },
+      requestId
+    });
+  }
   return rows[0];
 }
 
 // Cadastro de empresa pelo usuário ("Enviar para análise"). Nasce com
 // status 'pending' (aguardando análise da gestão) e vinculada ao usuário.
 // Se vier um arquivo, cria file_resource + document + enterprise_document.
-async function create(user, body, file) {
+async function create(user, body, file, requestId) {
   const actor = user || SYSTEM_USER;
   const personUuid = user && user.sub;
   if (!personUuid) throw new HttpError(401, 'unauthorized');
@@ -513,6 +537,13 @@ async function create(user, body, file) {
       actor
     );
   }
+
+  await audit.record(user, 'enterprise.create', {
+    entity: 'enterprise',
+    ref: name,
+    detail: { uuid: enterprise.uuid, cnpj, with_document: !!(file && file.buffer) },
+    requestId
+  });
 
   return { uuid: enterprise.uuid };
 }

@@ -9,6 +9,8 @@ function httpLogs() {
     const requestId = req.headers['x-request-id'] || randomUUID();
     const start = process.hrtime.bigint();
 
+    // Disponível para as rotas correlacionarem auditoria com este log HTTP.
+    req.requestId = requestId;
     res.setHeader('x-request-id', requestId);
 
     res.on('finish', () => {

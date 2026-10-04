@@ -24,6 +24,70 @@ const itemRef = (itemId) => `${REF_PREFIX}${itemId}`;
 const isRef = (fp) => String(fp || '').startsWith(REF_PREFIX);
 const refToItem = (fp) => String(fp).slice(REF_PREFIX.length);
 
+// Status da assinatura coerente com o status do documento (mesma régua do seed).
+function signatureStatusFor(docStatus) {
+  switch (docStatus) {
+    case 'signed':
+    case 'archived':
+      return 'signed';
+    case 'pending':
+      return 'waiting_signature';
+    case 'refused':
+    case 'expired':
+      return 'expired';
+    default: // draft
+      return 'pending_submission';
+  }
+}
+
+// Todo contrato nasce com sua signature (workflow de assinatura) já criada.
+async function newDocument(actor, name, fileResourceId) {
+  const sig = await crud.create(
+    'signature',
+    { status: 'pending_submission' },
+    { returning: ['id'] },
+    actor
+  );
+  return crud.create(
+    'document',
+    { name: name || 'Contrato', status: 'draft', file_resource_id: fileResourceId, signature_id: sig.id },
+    { returning: ['id', 'uuid', 'status'] },
+    actor
+  );
+}
+
+// Espelha o status do documento na signature. Cria a linha para documentos que
+// nasceram antes dessa regra (signature_id nulo).
+async function syncSignature(actor, documentUuid) {
+  const doc = await crud.read(
+    'document',
+    { select: ['id', 'status', 'signature_id'], where: { uuid: documentUuid } },
+    null,
+    actor
+  );
+  if (!doc) return;
+
+  const status = signatureStatusFor(doc.status);
+  const signed_date = status === 'signed' ? new Date() : null;
+
+  if (doc.signature_id == null) {
+    const sig = await crud.create('signature', { status, signed_date }, { returning: ['id'] }, actor);
+    await crud.update(
+      'document',
+      { signature_id: sig.id },
+      { where: { id: doc.id }, returning: ['id'] },
+      actor
+    );
+  } else {
+    await crud.update(
+      'signature',
+      { status, signed_date },
+      { where: { id: doc.signature_id }, returning: ['id'] },
+      actor
+    );
+  }
+}
+
 // Garante um document para um item do OneDrive (cria file_resource + document se
 // ainda não existir). Não mexe em vínculo com empresa. Idempotente por itemId.
 async function ensureDocument(actor, itemId, name) {
@@ -41,13 +105,7 @@ async function ensureDocument(actor, itemId, name) {
       actor
     );
     if (doc) return { id: doc.id, uuid: doc.uuid, status: doc.status };
-    const created = await crud.create(
-      'document',
-      { name: name || 'Contrato', status: 'draft', file_resource_id: fr.id },
-      { returning: ['id', 'uuid', 'status'] },
-      actor
-    );
-    return created;
+    return newDocument(actor, name, fr.id);
   }
 
   const newFr = await crud.create(
@@ -56,12 +114,7 @@ async function ensureDocument(actor, itemId, name) {
     { returning: ['id'] },
     actor
   );
-  return crud.create(
-    'document',
-    { name: name || 'Contrato', status: 'draft', file_resource_id: newFr.id },
-    { returning: ['id', 'uuid', 'status'] },
-    actor
-  );
+  return newDocument(actor, name, newFr.id);
 }
 
 // Vincula um item do OneDrive a uma empresa. Recusa se o contrato já estiver
@@ -101,6 +154,7 @@ async function setStatusByItem(actor, { itemId, name, status }) {
     { where: { uuid: doc.uuid }, returning: ['uuid', 'status'] },
     actor
   );
+  await syncSignature(actor, doc.uuid);
   return rows[0];
 }
 
@@ -186,4 +240,4 @@ async function listGenerated(token, actor) {
   });
 }
 
-module.exports = { HttpError, ensureDocument, linkToEnterprise, setStatusByItem, listUnlinked, listGenerated };
+module.exports = { HttpError, ensureDocument, syncSignature, linkToEnterprise, setStatusByItem, listUnlinked, listGenerated };

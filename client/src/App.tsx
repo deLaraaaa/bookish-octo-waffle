@@ -8,6 +8,7 @@ import AuthCallback from '@/pages/AuthCallback'
 import Onboarding from '@/pages/Onboarding'
 import Home from '@/pages/Home'
 import Manage from '@/pages/Manage'
+import Admin from '@/pages/Admin'
 import type { Account } from '@/lib/api'
 
 function Protected({
@@ -63,6 +64,14 @@ export default function App() {
           element={
             <Protected roles={['MANAGER', 'ADMIN']}>
               <Manage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <Protected roles={['ADMIN']}>
+              <Admin />
             </Protected>
           }
         />

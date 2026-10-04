@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Download, FileText, FolderSync, Loader2, RefreshCw, UploadCloud } from 'lucide-react'
+import { Download, FileText, FolderSync, Loader2, RefreshCw, Stamp, UploadCloud } from 'lucide-react'
 import {
   api,
   apiForm,
@@ -11,6 +11,7 @@ import {
 } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { GenerateContractModal } from '@/components/generate-contract-modal'
+import { StampContractModal } from '@/components/stamp-contract-modal'
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`
@@ -34,6 +35,7 @@ export function TemplatesContracts() {
   const [importing, setImporting] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [generateFor, setGenerateFor] = useState<Template | null>(null)
+  const [stampFor, setStampFor] = useState<GeneratedContract | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -239,6 +241,17 @@ export function TemplatesContracts() {
                       </option>
                     ))}
                   </select>
+                  {/* Chancela só faz sentido em PDF (o carimbo é aplicado no PDF) */}
+                  {/\.pdf$/i.test(c.name) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      title={t('templates.stamp.title')}
+                      onClick={() => setStampFor(c)}
+                    >
+                      <Stamp className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
@@ -262,6 +275,12 @@ export function TemplatesContracts() {
         template={generateFor}
         onClose={() => setGenerateFor(null)}
         onGenerated={loadContracts}
+      />
+
+      <StampContractModal
+        contract={stampFor}
+        onClose={() => setStampFor(null)}
+        onStamped={loadContracts}
       />
     </section>
   )

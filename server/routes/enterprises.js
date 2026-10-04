@@ -82,7 +82,7 @@ router.get('/all', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res
 // Aprovar/suspender: transição de estado da empresa (pending -> active, etc).
 router.patch('/:uuid/status', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
   try {
-    const data = await enterprise.updateStatus(req.user, req.params.uuid, (req.body || {}).status);
+    const data = await enterprise.updateStatus(req.user, req.params.uuid, (req.body || {}).status, req.requestId);
     res.send(data);
   } catch (err) {
     sendError(res, err);
@@ -100,7 +100,7 @@ router.get('/cnpj/:cnpj', requireAuth, async (req, res) => {
 
 router.post('/', requireAuth, upload.single('document'), async (req, res) => {
   try {
-    const data = await enterprise.create(req.user, req.body || {}, req.file);
+    const data = await enterprise.create(req.user, req.body || {}, req.file, req.requestId);
     res.status(201).send(data);
   } catch (err) {
     sendError(res, err);

@@ -15,16 +15,28 @@ const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingm
 const BASE = process.env.ONEDRIVE_BASE_FOLDER || 'Parcerias';
 const TEMPLATES = process.env.ONEDRIVE_TEMPLATES_FOLDER || 'Templates';
 const CONTRACTS = process.env.ONEDRIVE_CONTRACTS_FOLDER || 'Contratos Gerados';
+const CHANCELAS = process.env.ONEDRIVE_CHANCELAS_FOLDER || 'Chancelas';
 
 const templatesPath = `${BASE}/${TEMPLATES}`;
 const contractsPath = `${BASE}/${CONTRACTS}`;
+const chancelasPath = `${BASE}/${CHANCELAS}`;
+
+const IMAGE_MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
+function imageExt(name) {
+  const m = /\.(png|jpe?g)$/i.exec(String(name));
+  return m ? m[1].toLowerCase() : null;
+}
+function ensureExt(name, ext) {
+  return new RegExp(`\\.${ext}$`, 'i').test(name) ? name : `${name}.${ext}`;
+}
 
 // Cria as 3 pastas se ainda não existirem (idempotente). Rodar uma vez por conta.
 async function ensureStructure(token) {
   await graph.ensureFolder(token, '', BASE);
   await graph.ensureFolder(token, BASE, TEMPLATES);
   await graph.ensureFolder(token, BASE, CONTRACTS);
-  return { base: BASE, templatesPath, contractsPath };
+  await graph.ensureFolder(token, BASE, CHANCELAS);
+  return { base: BASE, templatesPath, contractsPath, chancelasPath };
 }
 
 function sanitize(name) {
@@ -82,12 +94,32 @@ async function listContracts(token) {
     .map((i) => ({ id: i.id, name: i.name, size: i.size, modified: i.lastModifiedDateTime }));
 }
 
+// IMPORT — sobe uma imagem de chancela (png/jpg) para a pasta Chancelas/.
+async function importSeal(token, name, buffer) {
+  const ext = imageExt(name);
+  if (!ext) throw Object.assign(new Error('invalid_image'), { status: 400, code: 'invalid_image' });
+  await ensureStructure(token); // idempotente: garante Chancelas/ antes do upload
+  const fileName = sanitize(name);
+  const item = await graph.uploadFile(token, `${chancelasPath}/${fileName}`, buffer, IMAGE_MIME[ext]);
+  return { id: item.id, name: item.name };
+}
+
+// Grava um PDF já pronto (ex.: contrato chancelado) na pasta de contratos gerados.
+async function saveContractPdf(token, outName, buffer) {
+  await ensureStructure(token);
+  const pdfName = ensureExt(sanitize(outName), 'pdf');
+  const item = await graph.uploadFile(token, `${contractsPath}/${pdfName}`, buffer, 'application/pdf');
+  return { id: item.id, name: item.name };
+}
+
 module.exports = {
-  paths: { base: BASE, templatesPath, contractsPath },
+  paths: { base: BASE, templatesPath, contractsPath, chancelasPath },
   ensureStructure,
   importTemplate,
   listTemplates,
   getTemplate,
   exportContract,
-  listContracts
+  listContracts,
+  importSeal,
+  saveContractPdf
 };

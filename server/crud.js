@@ -57,6 +57,18 @@ const SCHEMA = Object.freeze({
     'active'
   ],
 
+  audit_log: [
+    'id',
+    'actor_uuid',
+    'actor_email',
+    'action',
+    'entity',
+    'entity_ref',
+    'detail',
+    'request_id',
+    'insert_date'
+  ],
+
   identity: [
     'id',
     'uuid',
@@ -86,6 +98,26 @@ const SCHEMA = Object.freeze({
   ms_oauth_token: ['id', 'identity_id', 'refresh_token', 'scope', 'updated_at'],
 
   template: ['id', 'uuid', 'name', 'storage_provider', 'file_path', 'variables', 'insert_date', 'active'],
+
+  contract_job: [
+    'id',
+    'uuid',
+    'status',
+    'template_uuid',
+    'values',
+    'out_name',
+    'as_pdf',
+    'enterprise_uuid',
+    'requested_by',
+    'requested_by_email',
+    'result',
+    'error',
+    'attempts',
+    'insert_date',
+    'started_at',
+    'finished_at',
+    'active'
+  ],
 
   signature: ['id', 'uuid', 'status', 'signed_date', 'insert_date', 'active'],
 
@@ -259,21 +291,19 @@ function buildWhere(table, where = {}, startIndex = 1) {
   const values = [];
   let idx = startIndex;
 
-  for (const [rawCol, cond] of Object.entries(where || {})) {
-    const col = assertColumn(table, rawCol);
-
-    if (cond === undefined) continue;
+  const pushCond = (col, cond) => {
+    if (cond === undefined) return;
 
     if (cond === null) {
       clauses.push(`${col} IS NULL`);
-      continue;
+      return;
     }
 
     if (typeof cond !== 'object' || Array.isArray(cond)) {
       clauses.push(`${col} = $${idx}`);
       values.push(cond);
       idx += 1;
-      continue;
+      return;
     }
 
     const op = String(cond.op || '=').toLowerCase();
@@ -281,12 +311,12 @@ function buildWhere(table, where = {}, startIndex = 1) {
 
     if (op === 'is_null') {
       clauses.push(`${col} IS NULL`);
-      continue;
+      return;
     }
 
     if (op === 'is_not_null') {
       clauses.push(`${col} IS NOT NULL`);
-      continue;
+      return;
     }
 
     if (op === 'in') {
@@ -297,7 +327,7 @@ function buildWhere(table, where = {}, startIndex = 1) {
       clauses.push(`${col} = ANY($${idx})`);
       values.push(arr);
       idx += 1;
-      continue;
+      return;
     }
 
     const sqlOp =
@@ -308,6 +338,19 @@ function buildWhere(table, where = {}, startIndex = 1) {
     clauses.push(`${col} ${sqlOp} $${idx}`);
     values.push(cond.value);
     idx += 1;
+  };
+
+  for (const [rawCol, cond] of Object.entries(where || {})) {
+    const col = assertColumn(table, rawCol);
+
+    // Array no topo = várias condições AND sobre a MESMA coluna
+    // (ex.: intervalo de datas: [{op:'>=',...}, {op:'<',...}]).
+    if (Array.isArray(cond)) {
+      for (const c of cond) pushCond(col, c);
+      continue;
+    }
+
+    pushCond(col, cond);
   }
 
   return {

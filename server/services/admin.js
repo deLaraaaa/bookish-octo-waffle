@@ -2,6 +2,7 @@
 'use strict';
 
 const crud = require('../crud');
+const audit = require('./audit');
 const logger = require('../logger');
 
 const SYSTEM_USER = 'system:admin';
@@ -36,7 +37,7 @@ async function managerRoleId() {
 // Cria (ou revalida) um convite de Gestor para um e-mail. Se já existir uma
 // pessoa com esse e-mail (via identity), promove na hora; senão, o convite fica
 // pendente e é consumido no primeiro login (ver services/auth.resolveRole).
-async function createManagerInvite(actor, body) {
+async function createManagerInvite(actor, body, requestId) {
   const email = normalizeEmail(body && body.email);
   if (!email || !email.includes('@')) throw new HttpError(400, 'invalid_email');
   if (!ALLOWED_DOMAINS.includes(domainOf(email))) throw new HttpError(400, 'domain_not_allowed');
@@ -74,6 +75,12 @@ async function createManagerInvite(actor, body) {
     email,
     promoted_now: !!identity
   });
+  await audit.record(actor, 'manager.invite', {
+    entity: 'role_invite',
+    ref: email,
+    detail: { promoted_now: !!identity },
+    requestId
+  });
 
   return { email: invite.email, consumed: !!invite.consumed_at, promoted_now: !!identity };
 }
@@ -99,7 +106,7 @@ async function listManagerInvites() {
 
 // Revoga o convite (allowlist). Apenas bloqueia novas promoções: quem já é
 // Gestor continua Gestor — o rebaixamento é uma ação separada de um ADMIN.
-async function revokeManagerInvite(actor, rawEmail) {
+async function revokeManagerInvite(actor, rawEmail, requestId) {
   const email = normalizeEmail(rawEmail);
   if (!email) throw new HttpError(400, 'invalid_email');
 
@@ -110,12 +117,105 @@ async function revokeManagerInvite(actor, rawEmail) {
   );
 
   logger.info('manager_invite_revoked', { by: actor && actor.sub, email, removed: result.rowCount });
+  if (result.rowCount > 0) {
+    await audit.record(actor, 'manager.invite_revoke', {
+      entity: 'role_invite',
+      ref: email,
+      requestId
+    });
+  }
   return { ok: true, removed: result.rowCount };
+}
+
+// Lista as pessoas que são Gestoras hoje (role_id persistido = MANAGER).
+async function listManagers() {
+  const roleId = await managerRoleId();
+  const people = await crud.list(
+    'person',
+    {
+      select: ['id', 'uuid', 'full_name'],
+      where: { role_id: roleId, active: true },
+      orderBy: [{ column: 'full_name', direction: 'ASC' }]
+    },
+    null,
+    SYSTEM_USER
+  );
+  if (people.length === 0) return [];
+
+  const identities = await crud.list(
+    'identity',
+    {
+      select: ['person_id', 'email'],
+      where: { person_id: { op: 'in', value: people.map((p) => p.id) } }
+    },
+    null,
+    SYSTEM_USER
+  );
+  const emailByPerson = new Map(identities.map((i) => [String(i.person_id), i.email]));
+
+  return people.map((p) => ({
+    uuid: p.uuid,
+    name: p.full_name,
+    email: emailByPerson.get(String(p.id)) || null
+  }));
+}
+
+// Rebaixa um Gestor: limpa person.role_id (volta ao papel derivado do domínio)
+// e desativa o convite do e-mail, pra pessoa não ser repromovida no login.
+// Vale a partir da próxima sessão — o papel vive no JWT até ele expirar.
+async function demoteManager(actor, personUuid, requestId) {
+  if (!personUuid) throw new HttpError(400, 'uuid_required');
+
+  const person = await crud.read(
+    'person',
+    { select: ['id', 'uuid', 'full_name', 'role_id'], where: { uuid: personUuid } },
+    null,
+    SYSTEM_USER
+  );
+  if (!person) throw new HttpError(404, 'person_not_found');
+
+  const roleId = await managerRoleId();
+  if (Number(person.role_id) !== Number(roleId)) throw new HttpError(400, 'not_a_manager');
+
+  await crud.update(
+    'person',
+    { role_id: null },
+    { where: { id: person.id }, returning: false },
+    SYSTEM_USER
+  );
+
+  const identity = await crud.read(
+    'identity',
+    { select: ['email'], where: { person_id: person.id } },
+    null,
+    SYSTEM_USER
+  );
+  if (identity) {
+    // Sem convite correspondente o update só não afeta linhas — não é erro.
+    await crud.update(
+      'role_invite',
+      { active: false },
+      { where: { email: normalizeEmail(identity.email) }, returning: false },
+      SYSTEM_USER
+    );
+  }
+
+  logger.info('manager_demoted', { by: actor && actor.sub, person: person.uuid });
+  await audit.record(actor, 'manager.demote', {
+    entity: 'person',
+    ref: (identity && identity.email) || person.uuid,
+    detail: { person: person.uuid, name: person.full_name },
+    requestId
+  });
+
+  return { ok: true };
 }
 
 module.exports = {
   HttpError,
   createManagerInvite,
   listManagerInvites,
-  revokeManagerInvite
+  revokeManagerInvite,
+  listManagers,
+  demoteManager
 };

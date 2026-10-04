@@ -9,6 +9,10 @@ const multer = require('multer');
 const crud = require('../crud');
 const storage = require('../services/storage');
 const contracts = require('../services/contracts');
+const contractJobs = require('../services/contractJobs');
+const seals = require('../services/seals');
+const stamp = require('../services/stamp');
+const audit = require('../services/audit');
 const templateEngine = require('../services/template');
 const graph = require('../services/graph');
 const graphToken = require('../services/graphToken');
@@ -59,6 +63,12 @@ router.post('/templates', upload.single('file'), async (req, res) => {
       { returning: ['uuid', 'name', 'variables', 'insert_date'] },
       actor(req)
     );
+    await audit.record(req.user, 'template.import', {
+      entity: 'template',
+      ref: row.name,
+      detail: { uuid: row.uuid },
+      requestId: req.requestId
+    });
     res.json(row);
   } catch (err) { fail(res, err); }
 });
@@ -105,6 +115,15 @@ router.post('/templates/sync', async (req, res) => {
       removed.push(r.name);
     }
 
+    // Mescla sem mudança não gera registro — só poluiria a trilha.
+    if (added.length || removed.length) {
+      await audit.record(req.user, 'template.sync', {
+        entity: 'template',
+        detail: { added, removed, skipped },
+        requestId: req.requestId
+      });
+    }
+
     res.json({ added, removed, skipped });
   } catch (err) { fail(res, err); }
 });
@@ -122,30 +141,36 @@ router.get('/templates', async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-// EXPORT — preenche um template e grava o contrato.
-// { templateUuid, values, outName, asPdf, enterpriseUuid? } — se vier enterpriseUuid,
-// vincula o contrato gerado (PDF quando houver, senão o .docx) à empresa.
+// EXPORT — enfileira a geração de um contrato (assíncrona). O worker preenche o
+// template e grava o arquivo; se vier enterpriseUuid, vincula o gerado à empresa.
+// { templateUuid, values, outName, asPdf, enterpriseUuid? } -> 202 { uuid, status }.
+// O front acompanha em GET /contracts/jobs/:uuid.
 router.post('/contracts', async (req, res) => {
   try {
     const { templateUuid, values, outName, asPdf, enterpriseUuid } = req.body || {};
     if (!templateUuid || !outName) return res.status(400).json({ error: 'templateUuid_and_outName_required' });
 
+    // valida o template já aqui pra devolver 404 na hora (em vez de falhar o job depois)
     const tpl = await crud.read('template', { where: { uuid: templateUuid, active: true } }, null, actor(req));
     if (!tpl) return res.status(404).json({ error: 'template_not_found' });
 
-    const token = await tokenFor(req);
-    const out = await storage.exportContract(token, tpl.file_path, values || {}, outName, { asPdf: Boolean(asPdf) });
+    const job = await contractJobs.enqueue(actor(req), req.user.email, {
+      templateUuid, values, outName, asPdf, enterpriseUuid
+    });
+    await audit.record(req.user, 'contract.generate', {
+      entity: 'contract_job',
+      ref: outName,
+      detail: { job: job.uuid, template: tpl.name, enterpriseUuid: enterpriseUuid || null, asPdf: !!asPdf },
+      requestId: req.requestId
+    });
+    res.status(202).json(job);
+  } catch (err) { fail(res, err); }
+});
 
-    if (enterpriseUuid) {
-      const file = out.pdf || out.docx; // vincula o PDF quando existir
-      const link = await contracts.linkToEnterprise(actor(req), {
-        enterpriseUuid,
-        itemId: file.id,
-        name: file.name
-      });
-      out.linked = { enterpriseUuid, ...link };
-    }
-    res.json(out);
+// status de um job de geração (polling do front)
+router.get('/contracts/jobs/:uuid', async (req, res) => {
+  try {
+    res.json(await contractJobs.getByUuid(actor(req), req.params.uuid));
   } catch (err) { fail(res, err); }
 });
 
@@ -168,11 +193,19 @@ router.get('/contracts/unlinked', async (req, res) => {
 router.post('/contracts/link', async (req, res) => {
   try {
     const { enterpriseUuid, itemId, name } = req.body || {};
-    res.json(await contracts.linkToEnterprise(actor(req), { enterpriseUuid, itemId, name }));
+    const result = await contracts.linkToEnterprise(actor(req), { enterpriseUuid, itemId, name });
+    await audit.record(req.user, 'contract.link', {
+      entity: 'document',
+      ref: name || itemId,
+      detail: { enterpriseUuid, itemId },
+      requestId: req.requestId
+    });
+    res.json(result);
   } catch (err) { fail(res, err); }
 });
 
-// atualização MANUAL do status do contrato (interim até o Webdox dirigir isso)
+// Atualização manual do status do contrato pela gestão. A signature vinculada
+// acompanha o status do documento (contracts.syncSignature).
 const DOC_STATUSES = new Set(['draft', 'pending', 'signed', 'refused', 'expired', 'archived']);
 
 // por itemId (contratos gerados): garante o document e seta o status
@@ -180,7 +213,14 @@ router.patch('/contracts/status', async (req, res) => {
   try {
     const { itemId, name, status } = req.body || {};
     if (!DOC_STATUSES.has(status)) return res.status(400).json({ error: 'invalid_status' });
-    res.json(await contracts.setStatusByItem(actor(req), { itemId, name, status }));
+    const result = await contracts.setStatusByItem(actor(req), { itemId, name, status });
+    await audit.record(req.user, 'contract.status', {
+      entity: 'document',
+      ref: name || itemId,
+      detail: { to: status, itemId },
+      requestId: req.requestId
+    });
+    res.json(result);
   } catch (err) { fail(res, err); }
 });
 
@@ -189,6 +229,16 @@ router.patch('/contracts/:documentUuid/status', async (req, res) => {
   try {
     const status = (req.body || {}).status;
     if (!DOC_STATUSES.has(status)) return res.status(400).json({ error: 'invalid_status' });
+
+    // Lê antes do update pra auditar o de→para com o nome do documento.
+    const current = await crud.read(
+      'document',
+      { select: ['name', 'status'], where: { uuid: req.params.documentUuid } },
+      null,
+      actor(req)
+    );
+    if (!current) return res.status(404).json({ error: 'document_not_found' });
+
     const rows = await crud.update(
       'document',
       { status },
@@ -196,7 +246,76 @@ router.patch('/contracts/:documentUuid/status', async (req, res) => {
       actor(req)
     );
     if (!rows[0]) return res.status(404).json({ error: 'document_not_found' });
+
+    await contracts.syncSignature(actor(req), req.params.documentUuid);
+
+    if (current.status !== status) {
+      await audit.record(req.user, 'contract.status', {
+        entity: 'document',
+        ref: current.name,
+        detail: { from: current.status, to: status, document: req.params.documentUuid },
+        requestId: req.requestId
+      });
+    }
     res.json(rows[0]);
+  } catch (err) { fail(res, err); }
+});
+
+// CHANCELAS — sobe uma imagem (png/jpg), persiste o metadado (file_resource + seal)
+router.post('/seals', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'file_required' });
+    if (!/\.(png|jpe?g)$/i.test(req.file.originalname)) return res.status(400).json({ error: 'invalid_image' });
+    const token = await tokenFor(req);
+    const name = req.body.name || req.file.originalname;
+    const up = await storage.importSeal(token, name, req.file.buffer);
+    const seal = await seals.create(actor(req), { itemId: up.id, name: up.name });
+    await audit.record(req.user, 'seal.create', {
+      entity: 'seal',
+      ref: seal.name,
+      detail: { uuid: seal.uuid },
+      requestId: req.requestId
+    });
+    res.json(seal);
+  } catch (err) { fail(res, err); }
+});
+
+// lista as chancelas cadastradas (com itemId do OneDrive pra preview)
+router.get('/seals', async (req, res) => {
+  try {
+    res.json({ seals: await seals.list(actor(req)) });
+  } catch (err) { fail(res, err); }
+});
+
+// APLICAR CHANCELA — carimba a imagem de uma chancela num PDF de contrato, na
+// posição escolhida (frações 0..1 do tamanho da página, medidas do topo-esquerda).
+// { sealUuid, xFrac, yFracTop, widthFrac, page?, name? } -> novo PDF gerado.
+router.post('/contracts/:itemId/stamp', async (req, res) => {
+  try {
+    const { sealUuid, xFrac, yFracTop, widthFrac, page, name } = req.body || {};
+    if (!sealUuid) return res.status(400).json({ error: 'sealUuid_required' });
+
+    const token = await tokenFor(req);
+    const sealItemId = await seals.itemIdForUuid(actor(req), sealUuid);
+
+    const [pdfBuf, imgBuf] = await Promise.all([
+      graph.downloadItem(token, req.params.itemId),
+      graph.downloadItem(token, sealItemId)
+    ]);
+
+    const stamped = await stamp.stampImage(pdfBuf, imgBuf, {
+      xFrac, yFracTop, widthFrac, pageIndex: page == null ? null : Number(page)
+    });
+
+    const base = String(name || 'contrato').replace(/\.(pdf|docx)$/i, '');
+    const saved = await storage.saveContractPdf(token, `${base} (chancelado)`, stamped);
+    await audit.record(req.user, 'contract.stamp', {
+      entity: 'document',
+      ref: saved.name,
+      detail: { source: req.params.itemId, sealUuid, generated: saved.id },
+      requestId: req.requestId
+    });
+    res.json(saved);
   } catch (err) { fail(res, err); }
 });
 

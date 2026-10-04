@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowLeft, X } from 'lucide-react'
-import { api, type EnterpriseOption, type Template } from '@/lib/api'
+import { api, enqueueContract, pollContractJob, type EnterpriseOption, type Template } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -122,17 +122,20 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
     }
     setSubmitting(true)
     try {
-      await api('/storage/contracts', {
-        method: 'POST',
-        auth: true,
-        body: {
-          templateUuid: template!.uuid,
-          values,
-          outName: outName.trim(),
-          asPdf,
-          enterpriseUuid: enterpriseUuid || undefined,
-        },
+      // Geração é assíncrona: enfileira e acompanha o job até terminar.
+      const job = await enqueueContract({
+        templateUuid: template!.uuid,
+        values,
+        outName: outName.trim(),
+        asPdf,
+        enterpriseUuid: enterpriseUuid || undefined,
       })
+      const done = await pollContractJob(job.uuid)
+      if (done.status === 'failed') {
+        if ((done.error || '').includes('missing_variables')) setError(t('templates.generate.missingVariables'))
+        else setError(t('templates.generate.error'))
+        return
+      }
       toast.success(t('templates.generate.success'))
       onGenerated()
       onClose()

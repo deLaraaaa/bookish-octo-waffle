@@ -198,6 +198,79 @@
       "statusError": "Could not update the status."
     }
   },
+  "admin": {
+    "navLink": "Admin",
+    "title": "Administration",
+    "tabs": {
+      "accounts": "Accounts & Managers",
+      "audit": "Audit"
+    },
+    "loading": "Loading…",
+    "loadError": "Could not load the data.",
+    "invite": {
+      "title": "Invite Manager",
+      "description": "The invited e-mail becomes a Manager on first sign-in — or immediately, if the person already has an account.",
+      "placeholder": "name@catolicasc.edu.br",
+      "submit": "Invite",
+      "submitting": "Sending…",
+      "success": "Invite created.",
+      "promotedNow": "The person already had an account and was promoted immediately.",
+      "errors": {
+        "invalid_email": "Enter a valid e-mail.",
+        "domain_not_allowed": "Use a @catolicasc.edu.br or @catolicasc.org.br e-mail.",
+        "generic": "Could not create the invite."
+      }
+    },
+    "managers": {
+      "title": "Active managers",
+      "empty": "No active managers.",
+      "noEmail": "No e-mail on record",
+      "demote": "Demote",
+      "demoteConfirm": "Remove the Manager role from {{name}}? The change takes effect on their next sign-in.",
+      "demoted": "Manager demoted.",
+      "demoteError": "Could not demote the manager."
+    },
+    "invites": {
+      "title": "Invites",
+      "empty": "No invites created.",
+      "consumed": "Consumed",
+      "pendingUse": "Awaiting first sign-in",
+      "revoke": "Revoke",
+      "revoked": "Invite revoked.",
+      "revokeError": "Could not revoke the invite."
+    },
+    "audit": {
+      "title": "Audit logs",
+      "description": "Administrative and management actions — who did what, to whom, and when.",
+      "placeholders": {
+        "actor": "Actor's e-mail…",
+        "target": "Company, contract, invited e-mail…"
+      },
+      "allActions": "All actions",
+      "empty": "No records found.",
+      "when": "When",
+      "who": "Who",
+      "actionCol": "Action",
+      "target": "Target",
+      "detail": "Detail",
+      "promotedNow": "promoted immediately",
+      "syncDetail": "{{added}} added, {{removed}} removed",
+      "actions": {
+        "manager_invite": "Manager invite",
+        "manager_invite_revoke": "Invite revoked",
+        "manager_demote": "Manager demoted",
+        "enterprise_create": "Company registered",
+        "enterprise_status": "Company status",
+        "contract_generate": "Contract generated",
+        "contract_link": "Contract linked",
+        "contract_status": "Contract status",
+        "contract_stamp": "Seal applied",
+        "seal_create": "New seal",
+        "template_import": "Template imported",
+        "template_sync": "Templates merged"
+      }
+    }
+  },
   "templates": {
     "sectionTitle": "Templates & Contracts",
     "sectionDescription": "Contract templates with dynamic variables and the generated contracts — all in OneDrive.",
@@ -256,6 +329,21 @@
       "link": "Link",
       "success": "Contract linked to the company.",
       "error": "Could not link the contract."
+    },
+    "stamp": {
+      "title": "Apply seal",
+      "chooseSeal": "Seal",
+      "selectSeal": "Select a seal…",
+      "upload": "New",
+      "noSeals": "No seals yet. Upload an image (PNG/JPG).",
+      "hint": "Pick a seal and drag it over the last page; resize from the corner.",
+      "loadingPdf": "Loading the document…",
+      "apply": "Apply seal",
+      "applying": "Applying…",
+      "success": "Seal applied — new PDF generated.",
+      "error": "Could not apply the seal.",
+      "uploadSuccess": "Seal uploaded.",
+      "uploadError": "Could not upload the seal."
     }
   }
 }

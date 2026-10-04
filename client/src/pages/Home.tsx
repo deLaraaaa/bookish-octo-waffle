@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Search, ShieldCheck } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Search, ShieldCheck, UserCog } from 'lucide-react'
 import {
   api,
   type Enterprise,
@@ -121,8 +121,6 @@ export default function Home() {
 
   const roleSuffix = account?.role ? ` · ${t(`roles.${account.role}`)}` : ''
   const canManage = account?.role === 'MANAGER' || account?.role === 'ADMIN'
-  // Professor tem acesso de leitura aos contratos de todas as empresas.
-  const canViewContracts = canManage || account?.role === 'TEACHER'
 
   return (
     <div className="min-h-screen bg-muted/40">
@@ -139,6 +137,14 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {account?.role === 'ADMIN' && (
+              <Button asChild variant="outline" size="sm">
+                <Link to="/admin">
+                  <UserCog className="mr-1 h-4 w-4" />
+                  {t('admin.navLink')}
+                </Link>
+              </Button>
+            )}
             {canManage && (
               <Button asChild variant="outline" size="sm">
                 <Link to="/manage">
@@ -258,27 +264,17 @@ export default function Home() {
           ) : (
             <>
               <ul className="space-y-2">
-                {enterprises.map((e) => {
-                  const onToggle = () =>
-                    setOpenUuid((cur) => (cur === e.uuid ? null : e.uuid))
-                  // Professor/gestão veem a empresa com seus contratos (linha
-                  // expansível); aluno vê só os dados públicos.
-                  return canViewContracts ? (
-                    <MyEnterpriseRow
-                      key={e.uuid}
-                      enterprise={e}
-                      open={openUuid === e.uuid}
-                      onToggle={onToggle}
-                    />
-                  ) : (
-                    <EnterpriseRow
-                      key={e.uuid}
-                      enterprise={e}
-                      open={openUuid === e.uuid}
-                      onToggle={onToggle}
-                    />
-                  )
-                })}
+                {/* Catálogo mostra só dados públicos — contratos/status ficam na gestão. */}
+                {enterprises.map((e) => (
+                  <EnterpriseRow
+                    key={e.uuid}
+                    enterprise={e}
+                    open={openUuid === e.uuid}
+                    onToggle={() =>
+                      setOpenUuid((cur) => (cur === e.uuid ? null : e.uuid))
+                    }
+                  />
+                ))}
               </ul>
 
               {/* Paginação: 10 por página, controlada pelo backend */}

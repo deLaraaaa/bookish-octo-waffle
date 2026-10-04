@@ -198,6 +198,79 @@
       "statusError": "Não foi possível atualizar o status."
     }
   },
+  "admin": {
+    "navLink": "Admin",
+    "title": "Administração",
+    "tabs": {
+      "accounts": "Contas & Gestores",
+      "audit": "Auditoria"
+    },
+    "loading": "Carregando…",
+    "loadError": "Não foi possível carregar os dados.",
+    "invite": {
+      "title": "Convidar Gestor",
+      "description": "O e-mail convidado vira Gestor no primeiro login — ou na hora, se a pessoa já tiver conta.",
+      "placeholder": "nome@catolicasc.edu.br",
+      "submit": "Convidar",
+      "submitting": "Enviando…",
+      "success": "Convite criado.",
+      "promotedNow": "A pessoa já tinha conta e foi promovida na hora.",
+      "errors": {
+        "invalid_email": "Informe um e-mail válido.",
+        "domain_not_allowed": "Use um e-mail @catolicasc.edu.br ou @catolicasc.org.br.",
+        "generic": "Não foi possível criar o convite."
+      }
+    },
+    "managers": {
+      "title": "Gestores ativos",
+      "empty": "Nenhum gestor ativo.",
+      "noEmail": "Sem e-mail cadastrado",
+      "demote": "Rebaixar",
+      "demoteConfirm": "Remover o papel de Gestor de {{name}}? A mudança vale a partir do próximo login.",
+      "demoted": "Gestor rebaixado.",
+      "demoteError": "Não foi possível rebaixar o gestor."
+    },
+    "invites": {
+      "title": "Convites",
+      "empty": "Nenhum convite criado.",
+      "consumed": "Consumido",
+      "pendingUse": "Aguardando primeiro login",
+      "revoke": "Revogar",
+      "revoked": "Convite revogado.",
+      "revokeError": "Não foi possível revogar o convite."
+    },
+    "audit": {
+      "title": "Logs de auditoria",
+      "description": "Ações administrativas e de gestão — quem fez o quê, em quem e quando.",
+      "placeholders": {
+        "actor": "E-mail de quem fez…",
+        "target": "Empresa, contrato, e-mail convidado…"
+      },
+      "allActions": "Todas as ações",
+      "empty": "Nenhum registro encontrado.",
+      "when": "Quando",
+      "who": "Quem",
+      "actionCol": "Ação",
+      "target": "Alvo",
+      "detail": "Detalhe",
+      "promotedNow": "promovido(a) na hora",
+      "syncDetail": "{{added}} adicionado(s), {{removed}} removido(s)",
+      "actions": {
+        "manager_invite": "Convite de Gestor",
+        "manager_invite_revoke": "Revogação de convite",
+        "manager_demote": "Rebaixamento de Gestor",
+        "enterprise_create": "Cadastro de empresa",
+        "enterprise_status": "Status de empresa",
+        "contract_generate": "Geração de contrato",
+        "contract_link": "Vínculo de contrato",
+        "contract_status": "Status de contrato",
+        "contract_stamp": "Chancela aplicada",
+        "seal_create": "Nova chancela",
+        "template_import": "Importação de modelo",
+        "template_sync": "Mescla de modelos"
+      }
+    }
+  },
   "templates": {
     "sectionTitle": "Templates & Contratos",
     "sectionDescription": "Modelos de contrato com variáveis dinâmicas e os contratos gerados — tudo no OneDrive.",
@@ -256,6 +329,21 @@
       "link": "Vincular",
       "success": "Contrato vinculado à empresa.",
       "error": "Não foi possível vincular o contrato."
+    },
+    "stamp": {
+      "title": "Aplicar chancela",
+      "chooseSeal": "Chancela",
+      "selectSeal": "Selecione uma chancela…",
+      "upload": "Nova",
+      "noSeals": "Nenhuma chancela cadastrada. Envie uma imagem (PNG/JPG).",
+      "hint": "Escolha uma chancela e arraste-a sobre a última página; ajuste o tamanho pelo canto.",
+      "loadingPdf": "Carregando o documento…",
+      "apply": "Aplicar chancela",
+      "applying": "Aplicando…",
+      "success": "Chancela aplicada — novo PDF gerado.",
+      "error": "Não foi possível aplicar a chancela.",
+      "uploadSuccess": "Chancela enviada.",
+      "uploadError": "Não foi possível enviar a chancela."
     }
   }
 }
