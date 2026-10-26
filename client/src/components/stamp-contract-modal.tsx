@@ -115,12 +115,10 @@ export function StampContractModal({ contract, onClose, onStamped }: Props) {
     return () => {
       if (url) URL.revokeObjectURL(url)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sealUuid, seals])
 
   useEffect(() => {
     if (canvasSize && sealUrl) placeDefault()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasSize])
 
   function placeDefault() {
@@ -170,7 +168,6 @@ export function StampContractModal({ contract, onClose, onStamped }: Props) {
     try {
       ;(e.target as Element).releasePointerCapture(e.pointerId)
     } catch {
-      /* noop */
     }
   }
 
@@ -234,7 +231,6 @@ export function StampContractModal({ contract, onClose, onStamped }: Props) {
         </div>
 
         <div className="space-y-4 px-5 py-5">
-          {/* Seletor + upload de chancela */}
           <div className="grid gap-1.5">
             <Label htmlFor="seal-select">{t('templates.stamp.chooseSeal')}</Label>
             <div className="flex gap-2">
@@ -271,7 +267,6 @@ export function StampContractModal({ contract, onClose, onStamped }: Props) {
 
           <p className="text-xs text-muted-foreground">{t('templates.stamp.hint')}</p>
 
-          {/* Preview da última página com a chancela sobreposta */}
           <div className="flex justify-center overflow-auto rounded-md border bg-muted/40 p-3">
             <div className="relative" style={{ width: canvasSize?.w, height: canvasSize?.h }}>
               <canvas ref={canvasRef} className="block rounded shadow-sm" />

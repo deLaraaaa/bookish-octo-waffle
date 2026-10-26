@@ -42,7 +42,6 @@ export default function TwoFactor() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function startCooldown() {

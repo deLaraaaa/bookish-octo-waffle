@@ -98,13 +98,11 @@ export default function Manage() {
         const insts = await api<Institution[]>('/institutions', { auth: true })
         setCities(Array.from(new Set(insts.map((i) => i.name).filter(Boolean))))
       } catch {
-        // O filtro de cidade é opcional; a lista funciona sem ele.
       }
     }
     loadCities()
     fetchAll('', 1, '', '')
     fetchPending('', 1)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const firstTabRender = useRef(true)
@@ -117,7 +115,6 @@ export default function Manage() {
       fetchAll(allSearch, allPage, allCity, allStatus)
       fetchPending(pendingSearch, pendingPage)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
   async function updateContractStatus(documentUuid: string, status: string) {
@@ -258,7 +255,6 @@ export default function Manage() {
       </header>
 
       <main className="container py-8">
-        {/* Abas: separa gestão de empresas do motor de templates/contratos. */}
         <div className="mb-6 flex gap-6 border-b">
           {(['enterprises', 'templates'] as const).map((key) => (
             <button
@@ -279,14 +275,12 @@ export default function Manage() {
 
         {tab === 'enterprises' && (
         <div className="space-y-10">
-        {/* ===================== Pendentes de aprovação ===================== */}
         <section>
           <div className="mb-4">
             <h2 className="text-xl font-semibold">{t('manage.pending.title')}</h2>
             <p className="text-sm text-muted-foreground">{t('manage.pending.description')}</p>
           </div>
 
-          {/* Só campo de busca */}
           <form
             onSubmit={(e) => {
               e.preventDefault()
@@ -355,14 +349,12 @@ export default function Manage() {
           )}
         </section>
 
-        {/* ===================== Todas as empresas ===================== */}
         <section>
           <div className="mb-4">
             <h2 className="text-xl font-semibold">{t('manage.all.title')}</h2>
             <p className="text-sm text-muted-foreground">{t('manage.all.description')}</p>
           </div>
 
-          {/* Busca + cidade + status */}
           <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
             <form
               onSubmit={(e) => {
@@ -487,7 +479,6 @@ export default function Manage() {
         </div>
         )}
 
-        {/* ===================== Templates & Contratos ===================== */}
         {tab === 'templates' && <TemplatesContracts />}
       </main>
 

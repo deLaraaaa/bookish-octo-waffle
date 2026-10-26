@@ -203,7 +203,6 @@ export function ContractItem({
           </p>
         </div>
       </div>
-      {/* Gestão passa controles (ver/baixar/status); demais telas mostram só o selo. */}
       {controls ?? (
         <span
           className={cn(

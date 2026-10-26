@@ -22,7 +22,6 @@ export default function AuthCallback() {
       navigate(account?.onboarding_completed ? '/' : '/onboarding', { replace: true })
     }
     completeLogin()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (

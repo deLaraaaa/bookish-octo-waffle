@@ -77,13 +77,11 @@ export default function Home() {
         initialCity = accountCity && names.includes(accountCity) ? accountCity : ''
         setCity(initialCity)
       } catch {
-        // Sem cidades: o catálogo continua funcionando sem o filtro.
       }
       fetchCatalog('', 1, initialCity)
     }
     init()
     fetchMine()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function onSearchSubmit(e: React.FormEvent) {
@@ -154,7 +152,7 @@ export default function Home() {
       </header>
 
       <main className="container space-y-10 py-8">
-        {/* ===================== Minhas empresas ===================== */}
+        {}
         <section>
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
@@ -194,16 +192,16 @@ export default function Home() {
           onCreated={fetchMine}
         />
 
-        {/* ===================== Empresas parceiras ===================== */}
+        {}
         <section>
           <div className="mb-4">
             <h2 className="text-xl font-semibold">{t('home.catalog.title')}</h2>
             <p className="text-sm text-muted-foreground">{t('home.catalog.description')}</p>
           </div>
 
-          {/* Barra de busca + filtro de cidade, lado a lado (quebra em telas estreitas) */}
+          {}
           <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-            {/* Busca via endpoint (campo + botão) */}
+            {}
             <form onSubmit={onSearchSubmit} className="flex flex-1 gap-2 sm:max-w-md">
               <Input
                 value={searchInput}
@@ -221,7 +219,7 @@ export default function Home() {
               )}
             </form>
 
-            {/* Filtro por cidade de origem (opções da tabela institution) */}
+            {}
             {cities.length > 0 && (
               <div className="flex items-center gap-2">
                 <label htmlFor="city-filter" className="whitespace-nowrap text-sm font-medium">
@@ -256,7 +254,7 @@ export default function Home() {
           ) : (
             <>
               <ul className="space-y-2">
-                {/* Catálogo mostra só dados públicos — contratos/status ficam na gestão. */}
+                {}
                 {enterprises.map((e) => (
                   <EnterpriseRow
                     key={e.uuid}
@@ -269,7 +267,7 @@ export default function Home() {
                 ))}
               </ul>
 
-              {/* Paginação: 10 por página, controlada pelo backend */}
+              {}
               <div className="mt-4 flex items-center justify-between gap-3">
                 <Button
                   variant="outline"

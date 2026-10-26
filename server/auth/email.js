@@ -19,8 +19,8 @@ function getTransport() {
   cached = nodemailer.createTransport({
     host,
     port,
-    secure, // 465 = SSL direto; 587 = STARTTLS
-    requireTLS: !secure, // força STARTTLS na 587 (necessário no Office 365)
+    secure,
+    requireTLS: !secure,
     auth:
       process.env.SMTP_USER && process.env.SMTP_PASS
         ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }

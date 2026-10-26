@@ -132,7 +132,6 @@ function AccountsTab() {
 
   useEffect(() => {
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function onInvite(e: React.FormEvent) {
@@ -187,7 +186,6 @@ function AccountsTab() {
 
   return (
     <div className="space-y-10">
-      {/* Convite por e-mail: a regra (domínio, promoção na hora) fica no backend. */}
       <section>
         <div className="mb-4">
           <h2 className="text-xl font-semibold">{t('admin.invite.title')}</h2>
@@ -208,7 +206,6 @@ function AccountsTab() {
         </form>
       </section>
 
-      {/* Gestores com papel persistido hoje. */}
       <section>
         <div className="mb-4">
           <h2 className="text-xl font-semibold">{t('admin.managers.title')}</h2>
@@ -245,7 +242,6 @@ function AccountsTab() {
         )}
       </section>
 
-      {/* Convites (allowlist): pendentes de primeiro login ou já consumidos. */}
       <section>
         <div className="mb-4">
           <h2 className="text-xl font-semibold">{t('admin.invites.title')}</h2>
@@ -320,7 +316,6 @@ function AuditTab() {
 
   useEffect(() => {
     fetchLogs(EMPTY_FILTERS, 1)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const hasFilters = Object.values(applied).some(Boolean)
@@ -359,7 +354,6 @@ function AuditTab() {
         <p className="text-sm text-muted-foreground">{t('admin.audit.description')}</p>
       </div>
 
-      {/* Um filtro por coluna da tabela, combináveis entre si (AND). */}
       <form
         onSubmit={(e) => {
           e.preventDefault()

@@ -27,7 +27,7 @@ function authorizeUrl(state) {
     redirect_uri: c.redirectUri,
     response_mode: 'query',
     scope: SCOPE,
-    prompt: 'select_account', // deixa o usuário escolher a conta
+    prompt: 'select_account',
     state
   });
   return `${AUTHORITY}/oauth2/v2.0/authorize?${params.toString()}`;
@@ -97,7 +97,7 @@ async function fetchProfile(accessToken) {
   const email = (me.mail || me.userPrincipalName || '').toLowerCase();
 
   return {
-    oid: me.id, // object id estável da conta Microsoft (não muda quando o e-mail é renomeado)
+    oid: me.id,
     name: me.displayName || email,
     email
   };

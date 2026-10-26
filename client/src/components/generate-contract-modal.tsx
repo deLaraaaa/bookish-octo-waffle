@@ -162,7 +162,7 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4 px-5 py-5">
-          {/* Empresa (opcional): pré-preenche as variáveis E vincula o contrato a ela */}
+          {}
           {enterprises.length > 0 && (
             <div className="grid gap-1.5">
               <Label htmlFor="from-enterprise">{t('templates.generate.enterprise')}</Label>
@@ -193,7 +193,7 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
             </div>
           )}
 
-          {/* Campos por variável */}
+          {}
           {variables.length === 0 ? (
             <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
               {t('templates.generate.noVariables')}
@@ -209,14 +209,12 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
             </div>
           )}
 
-          {/* Nome do arquivo */}
           <div className="grid gap-1.5">
             <Label htmlFor="out-name">{t('templates.generate.outName')}</Label>
             <Input id="out-name" value={outName} onChange={(e) => setOutName(e.target.value)} />
             <p className="text-xs text-muted-foreground">{t('templates.generate.outNameHint')}</p>
           </div>
 
-          {/* PDF */}
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={asPdf} onChange={(e) => setAsPdf(e.target.checked)} />
             {t('templates.generate.asPdf')}

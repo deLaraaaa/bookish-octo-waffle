@@ -28,7 +28,7 @@ function signatureStatusFor(docStatus) {
     case 'refused':
     case 'expired':
       return 'expired';
-    default: // draft
+    default:
       return 'pending_submission';
   }
 }

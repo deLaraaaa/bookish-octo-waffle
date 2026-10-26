@@ -137,7 +137,6 @@ export function TemplatesContracts() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* ---------- Modelos ---------- */}
         <div className="rounded-lg border bg-background p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
@@ -197,7 +196,6 @@ export function TemplatesContracts() {
           )}
         </div>
 
-        {/* ---------- Contratos gerados ---------- */}
         <div className="rounded-lg border bg-background p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
@@ -241,7 +239,6 @@ export function TemplatesContracts() {
                       </option>
                     ))}
                   </select>
-                  {/* Chancela só faz sentido em PDF (o carimbo é aplicado no PDF) */}
                   {/\.pdf$/i.test(c.name) && (
                     <Button
                       size="sm"

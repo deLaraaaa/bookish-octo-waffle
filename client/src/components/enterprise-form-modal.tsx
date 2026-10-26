@@ -134,7 +134,6 @@ export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="w-full max-w-lg overflow-hidden rounded-xl bg-background shadow-xl">
-        {/* Header */}
         <div className="flex items-center gap-3 bg-primary px-5 py-4 text-primary-foreground">
           <button type="button" onClick={onClose} aria-label="voltar" className="shrink-0">
             <ArrowLeft className="h-5 w-5" />
@@ -146,7 +145,6 @@ export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4 px-5 py-5">
-          {/* CNPJ */}
           <div className="grid gap-1.5">
             <Label htmlFor="cnpj">{t('home.form.cnpj')}</Label>
             <div className="flex gap-2">
@@ -197,7 +195,6 @@ export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
             )}
           </div>
 
-          {/* Razão social */}
           <div className="grid gap-1.5">
             <Label htmlFor="name">{t('home.form.razao')}</Label>
             <Input id="name" value={form.name} onChange={(e) => set('name', e.target.value)} />
@@ -208,7 +205,6 @@ export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
             )}
           </div>
 
-          {/* Contato */}
           <div className="grid gap-1.5">
             <Label>{t('home.form.contact')}</Label>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -227,7 +223,6 @@ export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
             <p className="text-xs text-muted-foreground">{t('home.form.contactHint')}</p>
           </div>
 
-          {/* Endereço */}
           <div className="grid gap-1.5">
             <Label>{t('home.form.address')}</Label>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-6">
@@ -270,7 +265,6 @@ export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
             </div>
           </div>
 
-          {/* Documento (opcional) */}
           <div className="grid gap-1.5">
             <Label htmlFor="document">{t('home.form.document')}</Label>
             <label

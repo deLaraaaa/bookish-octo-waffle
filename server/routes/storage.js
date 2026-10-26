@@ -49,7 +49,7 @@ router.post('/templates', upload.single('file'), async (req, res) => {
       {
         name: up.name,
         storage_provider: 'onedrive',
-        file_path: up.id, // itemId do .docx em Templates/
+        file_path: up.id,
         variables: JSON.stringify(up.variables)
       },
       { returning: ['uuid', 'name', 'variables', 'insert_date'] },
@@ -69,7 +69,7 @@ router.post('/templates/sync', async (req, res) => {
   try {
     const token = await tokenFor(req);
     const [driveFiles, dbRows] = await Promise.all([
-      storage.listTemplates(token), // arquivos .docx na pasta (com itemId)
+      storage.listTemplates(token),
       crud.list('template', { select: ['uuid', 'name', 'file_path'], where: { active: true } }, null, actor(req))
     ]);
 
