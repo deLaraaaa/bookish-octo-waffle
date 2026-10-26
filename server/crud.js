@@ -2,7 +2,6 @@
 
 const db = require('./db');
 
-
 const IDENT_RE = /^[a-z_][a-z0-9_]*$/;
 
 const SCHEMA = Object.freeze({

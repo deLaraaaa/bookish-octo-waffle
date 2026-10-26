@@ -1,6 +1,5 @@
 'use strict';
 
-
 const { PDFDocument } = require('pdf-lib');
 
 class HttpError extends Error {
@@ -16,6 +15,11 @@ function clamp01(v) {
   return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;
 }
 
+function toStandaloneBytes(buf) {
+  if (buf.byteOffset === 0 && buf.byteLength === buf.buffer.byteLength) return buf;
+  return new Uint8Array(buf);
+}
+
 function detectImageType(buf) {
   if (buf.length > 3 && buf[0] === 0x89 && buf[1] === 0x50) return 'png';
   if (buf.length > 2 && buf[0] === 0xff && buf[1] === 0xd8) return 'jpg';
@@ -26,8 +30,9 @@ async function stampImage(pdfBuffer, imageBuffer, { xFrac, yFracTop, widthFrac, 
   const type = detectImageType(imageBuffer);
   if (!type) throw new HttpError(400, 'invalid_image');
 
+  const bytes = toStandaloneBytes(imageBuffer);
   const pdf = await PDFDocument.load(pdfBuffer);
-  const img = type === 'jpg' ? await pdf.embedJpg(imageBuffer) : await pdf.embedPng(imageBuffer);
+  const img = type === 'jpg' ? await pdf.embedJpg(bytes) : await pdf.embedPng(bytes);
 
   const pages = pdf.getPages();
   const idx = pageIndex == null ? pages.length - 1 : Number(pageIndex);

@@ -1,6 +1,5 @@
 'use strict';
 
-
 const crud = require('../crud');
 
 const REF_PREFIX = 'onedrive:';

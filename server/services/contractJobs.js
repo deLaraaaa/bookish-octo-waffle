@@ -1,6 +1,5 @@
 'use strict';
 
-
 const db = require('../db');
 const crud = require('../crud');
 const logger = require('../logger');
@@ -19,7 +18,6 @@ class HttpError extends Error {
     this.code = code;
   }
 }
-
 
 async function enqueue(actor, email, { templateUuid, values, outName, asPdf, enterpriseUuid }) {
   const row = await crud.create(
@@ -53,7 +51,6 @@ async function getByUuid(actor, uuid) {
   if (!job) throw new HttpError(404, 'job_not_found');
   return job;
 }
-
 
 let timer = null;
 let ticking = false;

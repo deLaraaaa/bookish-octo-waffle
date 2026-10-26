@@ -1,6 +1,5 @@
 'use strict';
 
-
 const GRAPH = 'https://graph.microsoft.com/v1.0';
 
 class GraphError extends Error {

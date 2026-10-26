@@ -1,6 +1,5 @@
 'use strict';
 
-
 const graph = require('./graph');
 const tpl = require('./template');
 

@@ -1,6 +1,5 @@
 'use strict';
 
-
 const TENANT = process.env.AZURE_TENANT_ID || 'common';
 const AUTHORITY = `https://login.microsoftonline.com/${TENANT}`;
 const SCOPE = 'openid profile email User.Read offline_access Files.ReadWrite';

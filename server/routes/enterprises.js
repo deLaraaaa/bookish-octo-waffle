@@ -38,7 +38,6 @@ router.get('/mine', requireAuth, async (req, res) => {
   }
 });
 
-
 router.get('/pending', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
   try {
     const data = await enterprise.listPending(req.user, {

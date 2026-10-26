@@ -1,6 +1,5 @@
 'use strict';
 
-
 const crud = require('../crud');
 const storage = require('./storage');
 

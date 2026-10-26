@@ -1,6 +1,5 @@
 'use strict';
 
-
 const crud = require('../crud');
 const microsoft = require('../auth/microsoft');
 const { encrypt, decrypt } = require('../auth/tokenCrypto');
