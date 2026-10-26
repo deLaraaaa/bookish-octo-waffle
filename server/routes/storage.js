@@ -1,8 +1,5 @@
-// server/routes/storage.js
 'use strict';
 
-// Templates e contratos no OneDrive do usuário logado. Metadados de template no
-// banco (tabela template); os arquivos moram no OneDrive. Só MANAGER/ADMIN.
 
 const express = require('express');
 const multer = require('multer');
@@ -21,7 +18,6 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
-// Templates e contratos são gestão institucional: só Gestor/Admin.
 router.use(requireAuth, requireRole('MANAGER', 'ADMIN'));
 
 function fail(res, err) {
@@ -29,7 +25,6 @@ function fail(res, err) {
   res.status(status).json({ error: err.code || err.message || 'internal_error', details: err.details });
 }
 
-// token do Graph pro usuário da sessão (req.user.email vem do JWT)
 function tokenFor(req) {
   return graphToken.accessTokenForEmail(req.user.email);
 }
@@ -37,7 +32,6 @@ function actor(req) {
   return req.user.sub || req.user.email || 'system:storage';
 }
 
-// cria as 3 pastas (idempotente) — rodar uma vez por conta
 router.post('/setup', async (req, res) => {
   try {
     const token = await tokenFor(req);
@@ -45,7 +39,6 @@ router.post('/setup', async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-// IMPORT — sobe um .docx de template (multipart, campo "file") e persiste o metadado
 router.post('/templates', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'file_required' });
@@ -73,10 +66,6 @@ router.post('/templates', upload.single('file'), async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-// MESCLAR — reconcilia a pasta Templates/ do OneDrive com a tabela template:
-//  - .docx na pasta que não está no banco  -> cadastra (detectando as variáveis)
-//  - linha no banco cujo arquivo sumiu      -> desativa
-// Deixa OneDrive e sistema iguais.
 router.post('/templates/sync', async (req, res) => {
   try {
     const token = await tokenFor(req);
@@ -96,7 +85,7 @@ router.post('/templates/sync', async (req, res) => {
       try {
         variables = templateEngine.detectVariables(await storage.getTemplate(token, f.id));
       } catch (_e) {
-        skipped.push(f.name); // não é um .docx válido
+        skipped.push(f.name);
         continue;
       }
       await crud.create(
@@ -115,7 +104,6 @@ router.post('/templates/sync', async (req, res) => {
       removed.push(r.name);
     }
 
-    // Mescla sem mudança não gera registro — só poluiria a trilha.
     if (added.length || removed.length) {
       await audit.record(req.user, 'template.sync', {
         entity: 'template',
@@ -128,7 +116,6 @@ router.post('/templates/sync', async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-// lista os templates cadastrados (do banco)
 router.get('/templates', async (req, res) => {
   try {
     const rows = await crud.list(
@@ -141,16 +128,11 @@ router.get('/templates', async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-// EXPORT — enfileira a geração de um contrato (assíncrona). O worker preenche o
-// template e grava o arquivo; se vier enterpriseUuid, vincula o gerado à empresa.
-// { templateUuid, values, outName, asPdf, enterpriseUuid? } -> 202 { uuid, status }.
-// O front acompanha em GET /contracts/jobs/:uuid.
 router.post('/contracts', async (req, res) => {
   try {
     const { templateUuid, values, outName, asPdf, enterpriseUuid } = req.body || {};
     if (!templateUuid || !outName) return res.status(400).json({ error: 'templateUuid_and_outName_required' });
 
-    // valida o template já aqui pra devolver 404 na hora (em vez de falhar o job depois)
     const tpl = await crud.read('template', { where: { uuid: templateUuid, active: true } }, null, actor(req));
     if (!tpl) return res.status(404).json({ error: 'template_not_found' });
 
@@ -167,7 +149,6 @@ router.post('/contracts', async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-// status de um job de geração (polling do front)
 router.get('/contracts/jobs/:uuid', async (req, res) => {
   try {
     res.json(await contractJobs.getByUuid(actor(req), req.params.uuid));
@@ -181,7 +162,6 @@ router.get('/contracts', async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-// contratos gerados que ainda não estão vinculados a nenhuma empresa
 router.get('/contracts/unlinked', async (req, res) => {
   try {
     const token = await tokenFor(req);
@@ -189,7 +169,6 @@ router.get('/contracts/unlinked', async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-// vincula um contrato já gerado a uma empresa { enterpriseUuid, itemId, name }
 router.post('/contracts/link', async (req, res) => {
   try {
     const { enterpriseUuid, itemId, name } = req.body || {};
@@ -204,11 +183,8 @@ router.post('/contracts/link', async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-// Atualização manual do status do contrato pela gestão. A signature vinculada
-// acompanha o status do documento (contracts.syncSignature).
 const DOC_STATUSES = new Set(['draft', 'pending', 'signed', 'refused', 'expired', 'archived']);
 
-// por itemId (contratos gerados): garante o document e seta o status
 router.patch('/contracts/status', async (req, res) => {
   try {
     const { itemId, name, status } = req.body || {};
@@ -224,13 +200,11 @@ router.patch('/contracts/status', async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-// por uuid do document (contratos já com document — ex.: lista da empresa)
 router.patch('/contracts/:documentUuid/status', async (req, res) => {
   try {
     const status = (req.body || {}).status;
     if (!DOC_STATUSES.has(status)) return res.status(400).json({ error: 'invalid_status' });
 
-    // Lê antes do update pra auditar o de→para com o nome do documento.
     const current = await crud.read(
       'document',
       { select: ['name', 'status'], where: { uuid: req.params.documentUuid } },
@@ -261,7 +235,6 @@ router.patch('/contracts/:documentUuid/status', async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-// CHANCELAS — sobe uma imagem (png/jpg), persiste o metadado (file_resource + seal)
 router.post('/seals', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'file_required' });
@@ -280,16 +253,12 @@ router.post('/seals', upload.single('file'), async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-// lista as chancelas cadastradas (com itemId do OneDrive pra preview)
 router.get('/seals', async (req, res) => {
   try {
     res.json({ seals: await seals.list(actor(req)) });
   } catch (err) { fail(res, err); }
 });
 
-// APLICAR CHANCELA — carimba a imagem de uma chancela num PDF de contrato, na
-// posição escolhida (frações 0..1 do tamanho da página, medidas do topo-esquerda).
-// { sealUuid, xFrac, yFracTop, widthFrac, page?, name? } -> novo PDF gerado.
 router.post('/contracts/:itemId/stamp', async (req, res) => {
   try {
     const { sealUuid, xFrac, yFracTop, widthFrac, page, name } = req.body || {};
@@ -319,7 +288,6 @@ router.post('/contracts/:itemId/stamp', async (req, res) => {
   } catch (err) { fail(res, err); }
 });
 
-// proxy de download de um item do OneDrive (browser não fala com o Graph direto)
 router.get('/download/:itemId', async (req, res) => {
   try {
     const token = await tokenFor(req);

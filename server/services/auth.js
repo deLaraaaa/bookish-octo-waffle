@@ -1,4 +1,3 @@
-// server/services/auth.js
 'use strict';
 
 const crud = require('../crud');
@@ -60,12 +59,6 @@ async function roleNameById(id) {
   return r ? r.name : null;
 }
 
-// Resolve o papel do usuário em três degraus, do mais específico ao padrão:
-//   1) person.role_id definido  -> papel persistido (MANAGER/ADMIN)
-//   2) convite (role_invite) pendente para o e-mail -> aplica e consome o convite
-//   3) fallback: papel derivado do domínio do e-mail (STUDENT/TEACHER)
-// O degrau do convite vem DEPOIS do role_id: uma revogação/rebaixamento futuro em
-// person.role_id nunca é sobreposto por um convite antigo já consumido.
 async function resolveRole(person, email, domain) {
   if (person.role_id != null) {
     const name = await roleNameById(person.role_id);
@@ -167,7 +160,6 @@ async function handleMicrosoftCallback(query) {
 
     const { identity, isNewIdentity } = await resolveIdentity(profile);
 
-    // Guarda o refresh token do Graph pra agir no OneDrive do usuário depois do login.
     if (tokenSet.refresh_token) {
       try {
         await graphToken.saveRefreshToken(identity.id, tokenSet.refresh_token, tokenSet.scope);

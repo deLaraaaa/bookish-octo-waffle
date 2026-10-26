@@ -36,7 +36,6 @@ export default function Manage() {
   const [openUuid, setOpenUuid] = useState<string | null>(null)
   const [busyUuid, setBusyUuid] = useState<string | null>(null)
 
-  // ---- Todas as empresas (busca + cidade + status + paginação) ----
   const [all, setAll] = useState<MyEnterprise[]>([])
   const [allLoading, setAllLoading] = useState(true)
   const [allError, setAllError] = useState(false)
@@ -47,7 +46,6 @@ export default function Manage() {
   const [allPage, setAllPage] = useState(1)
   const [allHasMore, setAllHasMore] = useState(false)
 
-  // ---- Pendentes de aprovação (busca + paginação) ----
   const [pending, setPending] = useState<MyEnterprise[]>([])
   const [pendingLoading, setPendingLoading] = useState(true)
   const [pendingError, setPendingError] = useState(false)
@@ -56,7 +54,6 @@ export default function Manage() {
   const [pendingPage, setPendingPage] = useState(1)
   const [pendingHasMore, setPendingHasMore] = useState(false)
 
-  // Busca/filtro/paginação no backend, não no frontend.
   async function fetchAll(search: string, page: number, city: string, status: string) {
     setAllLoading(true)
     setAllError(false)
@@ -110,8 +107,6 @@ export default function Manage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Ao voltar para a aba Empresas, re-busca (reflete contratos vinculados/status
-  // mexidos na aba de Templates). A aba Templates se recarrega ao remontar.
   const firstTabRender = useRef(true)
   useEffect(() => {
     if (firstTabRender.current) {
@@ -125,7 +120,6 @@ export default function Manage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
-  // Atualização MANUAL do status de um contrato (interim até o Webdox).
   async function updateContractStatus(documentUuid: string, status: string) {
     try {
       await api(`/storage/contracts/${documentUuid}/status`, { method: 'PATCH', body: { status }, auth: true })
@@ -137,7 +131,6 @@ export default function Manage() {
     }
   }
 
-  // Controles por contrato na gestão: ver, baixar e mudar o status manualmente.
   function contractControls(c: Contract) {
     const proxy = c.item_id
       ? `/storage/download/${c.item_id}?name=${encodeURIComponent(c.name)}`
@@ -183,8 +176,6 @@ export default function Manage() {
     )
   }
 
-  // Transição de estado (aprovar/suspender/etc); recarrega as duas listas
-  // preservando os filtros/paginação atuais.
   async function setStatus(uuid: string, status: EnterpriseStatus) {
     setBusyUuid(uuid)
     try {
@@ -512,7 +503,6 @@ export default function Manage() {
   )
 }
 
-// Paginação (10/página, controlada pelo backend), igual à da Home.
 function Pager({
   page,
   hasMore,

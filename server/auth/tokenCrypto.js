@@ -1,8 +1,5 @@
-// server/auth/tokenCrypto.js
 'use strict';
 
-// Cifra/decifra segredos curtos (refresh token do Graph) com AES-256-GCM.
-// Chave em TOKEN_ENC_KEY (32 bytes em base64 ou hex). Formato: iv:tag:ciphertext (base64).
 
 const crypto = require('crypto');
 

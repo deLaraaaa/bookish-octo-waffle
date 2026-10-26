@@ -21,7 +21,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
-const RESEND_MS = 30_000; // cooldown de 30s entre reenvios
+const RESEND_MS = 30_000;
 
 export default function TwoFactor() {
   const { t } = useTranslation();

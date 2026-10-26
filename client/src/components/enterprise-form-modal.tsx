@@ -29,7 +29,6 @@ const EMPTY = {
 
 type CnpjState = 'idle' | 'looking' | 'ok' | 'error' | 'notfound' | 'invalid' | 'duplicate'
 
-// 00.000.000/0000-00
 function formatCnpj(value: string): string {
   const d = value.replace(/\D/g, '').slice(0, 14)
   return d
@@ -49,7 +48,6 @@ export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
 
   const set = (k: keyof typeof EMPTY, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
-  // Reseta ao abrir/fechar.
   useEffect(() => {
     if (open) {
       setForm({ ...EMPTY })
@@ -59,7 +57,6 @@ export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
     }
   }, [open])
 
-  // Fecha com Esc.
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -72,8 +69,6 @@ export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
   async function lookup(cnpjMasked: string) {
     const digits = cnpjMasked.replace(/\D/g, '')
     if (!digits) return
-    // Não validamos os dígitos no cliente: o backend valida e responde 400
-    // (invalid_cnpj) — usamos essa resposta para exibir o erro.
     setCnpjState('looking')
     try {
       const d = await api<CnpjLookup>(`/enterprises/cnpj/${digits}`, { auth: true })
@@ -88,7 +83,6 @@ export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
         zipCode: d.zip_code || '',
         phoneNumber: d.phone_number || '',
       }))
-      // Existe na Receita, mas já cadastrado no sistema? Avisa inline.
       setCnpjState(d.already_registered ? 'duplicate' : 'ok')
     } catch (err) {
       const msg = err instanceof Error ? err.message : ''

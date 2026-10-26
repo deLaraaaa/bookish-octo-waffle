@@ -4,8 +4,6 @@ import { ChevronRight, FileText, MapPin, Phone, User } from 'lucide-react'
 import type { Contract, Enterprise, EnterpriseCard } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
-// Cor do selo por status da empresa: verde=ativa, âmbar=pendente,
-// vermelho=suspensa, cinza=inativa.
 export function statusBadgeClasses(status: string): string {
   switch (status) {
     case 'active':
@@ -32,7 +30,6 @@ export function formatAddress(e: {
   return [line, rest].filter(Boolean).join(' — ')
 }
 
-// Linha compacta do catálogo público (sem contratos).
 export function EnterpriseRow({
   enterprise: e,
   open,
@@ -77,9 +74,6 @@ export function EnterpriseRow({
   )
 }
 
-// Linha completa (empresa + contratos). Usada em "Minhas empresas" e na gestão.
-// `statusLabel`: rótulo do estado exibido no cabeçalho (opcional).
-// `actions`: ação(ões) renderizada(s) no corpo expandido (ex.: botão Aprovar).
 export function MyEnterpriseRow({
   enterprise: e,
   open,
@@ -93,7 +87,6 @@ export function MyEnterpriseRow({
   onToggle: () => void
   statusLabel?: string
   actions?: ReactNode
-  // Controles por contrato (ver/baixar/status) — usados só na gestão.
   contractControls?: (contract: Contract) => ReactNode
 }) {
   const { t } = useTranslation()

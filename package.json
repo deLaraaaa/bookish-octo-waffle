@@ -6,7 +6,11 @@
     "restart": "docker compose up -d --build --force-recreate",
     "logs": "docker compose logs -f api",
     "dev:api": "node --watch server/server.js",
-    "test:smtp": "node server/scripts/test-smtp.js"
+    "test:smtp": "node server/scripts/test-smtp.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:gate": "vitest run --coverage --coverage.thresholds.lines=75 --coverage.thresholds.statements=75"
   },
   "dependencies": {
     "cors": "^2.8.6",
@@ -15,5 +19,9 @@
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.14",
     "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.9",
+    "vitest": "^2.1.9"
   }
 }

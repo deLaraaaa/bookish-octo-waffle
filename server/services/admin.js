@@ -1,4 +1,3 @@
-// server/services/admin.js
 'use strict';
 
 const crud = require('../crud');
@@ -34,9 +33,6 @@ async function managerRoleId() {
   return r.id;
 }
 
-// Cria (ou revalida) um convite de Gestor para um e-mail. Se já existir uma
-// pessoa com esse e-mail (via identity), promove na hora; senão, o convite fica
-// pendente e é consumido no primeiro login (ver services/auth.resolveRole).
 async function createManagerInvite(actor, body, requestId) {
   const email = normalizeEmail(body && body.email);
   if (!email || !email.includes('@')) throw new HttpError(400, 'invalid_email');
@@ -44,7 +40,6 @@ async function createManagerInvite(actor, body, requestId) {
 
   const roleId = await managerRoleId();
 
-  // Já existe login com esse e-mail? Promove imediatamente e marca consumido.
   const identity = await crud.read(
     'identity',
     { select: ['person_id'], where: { email } },
@@ -104,8 +99,6 @@ async function listManagerInvites() {
   }));
 }
 
-// Revoga o convite (allowlist). Apenas bloqueia novas promoções: quem já é
-// Gestor continua Gestor — o rebaixamento é uma ação separada de um ADMIN.
 async function revokeManagerInvite(actor, rawEmail, requestId) {
   const email = normalizeEmail(rawEmail);
   if (!email) throw new HttpError(400, 'invalid_email');
@@ -127,7 +120,6 @@ async function revokeManagerInvite(actor, rawEmail, requestId) {
   return { ok: true, removed: result.rowCount };
 }
 
-// Lista as pessoas que são Gestoras hoje (role_id persistido = MANAGER).
 async function listManagers() {
   const roleId = await managerRoleId();
   const people = await crud.list(
@@ -160,9 +152,6 @@ async function listManagers() {
   }));
 }
 
-// Rebaixa um Gestor: limpa person.role_id (volta ao papel derivado do domínio)
-// e desativa o convite do e-mail, pra pessoa não ser repromovida no login.
-// Vale a partir da próxima sessão — o papel vive no JWT até ele expirar.
 async function demoteManager(actor, personUuid, requestId) {
   if (!personUuid) throw new HttpError(400, 'uuid_required');
 
@@ -191,7 +180,6 @@ async function demoteManager(actor, personUuid, requestId) {
     SYSTEM_USER
   );
   if (identity) {
-    // Sem convite correspondente o update só não afeta linhas — não é erro.
     await crud.update(
       'role_invite',
       { active: false },

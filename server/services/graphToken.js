@@ -1,8 +1,5 @@
-// server/services/graphToken.js
 'use strict';
 
-// Ponte entre a sessão do usuário e o Microsoft Graph: guarda o refresh_token
-// (cifrado) por identity e entrega um access_token fresco quando o storage precisa.
 
 const crud = require('../crud');
 const microsoft = require('../auth/microsoft');
@@ -19,7 +16,6 @@ class HttpError extends Error {
   }
 }
 
-// Grava/atualiza o refresh token de uma identity (upsert por identity_id).
 async function saveRefreshToken(identityId, refresh, scope) {
   if (!refresh) return;
   const enc = encrypt(refresh);
@@ -56,8 +52,6 @@ async function identityByEmail(email) {
   );
 }
 
-// Devolve um access_token válido do Graph pra agir como o usuário do e-mail dado.
-// Usa o refresh token guardado, e regrava o refresh rotacionado que o Graph devolve.
 async function accessTokenForEmail(email) {
   const identity = await identityByEmail(email);
   if (!identity) throw new HttpError(404, 'identity_not_found');
@@ -68,7 +62,7 @@ async function accessTokenForEmail(email) {
     null,
     SYSTEM_USER
   );
-  if (!row) throw new HttpError(412, 'onedrive_not_connected'); // usuário precisa relogar
+  if (!row) throw new HttpError(412, 'onedrive_not_connected');
 
   let refresh;
   try {
@@ -82,7 +76,7 @@ async function accessTokenForEmail(email) {
     tok = await microsoft.refreshToken(refresh);
   } catch (e) {
     logger.warn('graph_refresh_failed', { identity: identity.uuid, error: e.message });
-    throw new HttpError(401, 'onedrive_reauth_required'); // refresh revogado/expirado
+    throw new HttpError(401, 'onedrive_reauth_required');
   }
 
   if (tok.refresh_token && tok.refresh_token !== refresh) {
