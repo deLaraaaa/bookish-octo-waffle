@@ -7,6 +7,12 @@
     "logs": "docker compose logs -f api",
     "dev:api": "node --watch server/server.js",
     "test:smtp": "node server/scripts/test-smtp.js",
+    "migration:make": "npx knex --knexfile ./server/knex-config.js migrate:make",
+    "migration:latest": "npx knex --knexfile ./server/knex-config.js migrate:latest",
+    "migration:rollback": "npx knex --knexfile ./server/knex-config.js migrate:rollback",
+    "migration:up": "npx knex --knexfile ./server/knex-config.js migrate:up",
+    "migration:down": "npx knex --knexfile ./server/knex-config.js migrate:down",
+    "migration:status": "npx knex --knexfile ./server/knex-config.js migrate:status"
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -17,6 +23,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
+    "knex": "^3.3.0",
     "nodemailer": "^6.9.14",
     "pg": "^8.20.0"
   },

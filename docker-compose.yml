@@ -12,7 +12,27 @@ services:
       - "5433:5432"
     volumes:
       - tcc_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tcc"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
     restart: unless-stopped
+
+  migrate:
+    build: .
+    container_name: tcc-migrate
+    command: npx knex --knexfile ./server/knex-config.js migrate:latest
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/tcc
+    volumes:
+      - ./server:/app/server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
   api:
     build: .
@@ -29,7 +49,10 @@ services:
     volumes:
       - ./server:/app/server
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   loki:
