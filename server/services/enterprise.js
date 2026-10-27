@@ -1,4 +1,3 @@
-// server/services/enterprise.js
 'use strict';
 
 const crud = require('../crud');
@@ -15,11 +14,10 @@ class HttpError extends Error {
 
 const onlyDigits = (v) => String(v || '').replace(/\D/g, '');
 
-// Valida os dígitos verificadores do CNPJ (14 dígitos).
 function isValidCnpj(rawCnpj) {
   const c = onlyDigits(rawCnpj);
   if (c.length !== 14) return false;
-  if (/^(\d)\1{13}$/.test(c)) return false; // rejeita todos iguais (00000000000000)
+  if (/^(\d)\1{13}$/.test(c)) return false;
 
   const digit = (base) => {
     const weights = base === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
@@ -32,8 +30,6 @@ function isValidCnpj(rawCnpj) {
   return digit(12) === Number(c[12]) && digit(13) === Number(c[13]);
 }
 
-// Consulta um CNPJ na BrasilAPI (grátis, sem chave) e normaliza para os nossos
-// nomes de campo. Proxy no backend evita CORS e centraliza o provedor.
 async function lookupCnpj(user, rawCnpj) {
   const actor = user || SYSTEM_USER;
   const cnpj = onlyDigits(rawCnpj);
@@ -53,7 +49,6 @@ async function lookupCnpj(user, rawCnpj) {
 
   const d = await res.json();
 
-  // Já existe uma empresa com esse CNPJ no sistema?
   const existing = await crud.read(
     'enterprise',
     { select: ['id'], where: { cnpj } },
@@ -93,12 +88,9 @@ const CATALOG_FIELDS = [
 
 const PAGE_SIZE = 10;
 
-// Comparação de cidades sem acentos/caixa ("JARAGUA DO SUL" == "Jaraguá do Sul").
 const normalizeCity = (s) =>
   String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
-// Um contrato "em dia": documento de contrato assinado (documento e assinatura)
-// e dentro da vigência (sem due_date ou com due_date no futuro).
 function hasActiveContract(contracts) {
   const now = Date.now();
   return (contracts || []).some(
@@ -110,20 +102,6 @@ function hasActiveContract(contracts) {
   );
 }
 
-// Catálogo público de parcerias: lista APENAS empresas ativas com contrato
-// assinado e em vigência, com endereço e contato, resolvendo a cidade a partir
-// da instituição (institution) à qual cada empresa pertence. Não expõe status
-// nem contratos — para isso existem as visões de gestão (/manage, /pending).
-//
-// Paginado: retorna no máximo PAGE_SIZE (10) empresas por página.
-// opts.search: filtro por nome (ILIKE), feito no banco — não no frontend.
-// opts.city: filtro pela cidade exibida (instituição, fallback empresa), sem
-//   acentos/caixa; as opções vêm da tabela institution no frontend. Vazio = todas.
-// opts.page: página 1-based (default 1).
-//
-// Retorno: { items, page, pageSize, hasMore }. O filtro "contrato em dia"
-// depende dos documentos, então a paginação é feita em memória sobre o
-// conjunto já filtrado.
 async function list(user, opts = {}) {
   const actor = user || SYSTEM_USER;
 
@@ -147,7 +125,6 @@ async function list(user, opts = {}) {
     crud.list(
       'enterprise',
       {
-        // 'id' é usado apenas para juntar os contratos; não vai para o retorno.
         select: ['id', ...CATALOG_FIELDS],
         where,
         orderBy: [{ column: 'name', direction: 'ASC' }]
@@ -162,9 +139,6 @@ async function list(user, opts = {}) {
   const contracts = await contractsByEnterprise(actor, rows.map((e) => e.id));
   let eligible = rows.filter((e) => hasActiveContract(contracts.get(e.id)));
 
-  // O filtro de cidade compara a MESMA cidade que o catálogo exibe (instituição,
-  // com fallback para a da empresa), ignorando acentos/caixa — cadastros vindos
-  // da BrasilAPI chegam como "JARAGUA DO SUL".
   if (city) {
     const target = normalizeCity(city);
     eligible = eligible.filter((e) => {
@@ -181,8 +155,6 @@ async function list(user, opts = {}) {
     const { id, institution_id, status, ...rest } = e;
     return {
       ...rest,
-      // Cidade vem da instituição; cai para a cidade da própria empresa quando
-      // ela não está vinculada a nenhuma instituição.
       city: inst?.city || rest.city || null,
       institution: inst ? { name: inst.name, city: inst.city } : null
     };
@@ -191,8 +163,6 @@ async function list(user, opts = {}) {
   return { items, page, pageSize: PAGE_SIZE, hasMore };
 }
 
-// Agrega contratos (empresa -> documentos -> assinatura) para um conjunto de
-// ids de empresa. Retorna Map<enterprise_id, contract[]>.
 async function contractsByEnterprise(actor, entIds) {
   if (!entIds.length) return new Map();
 
@@ -219,7 +189,6 @@ async function contractsByEnterprise(actor, entIds) {
       )
     : [];
 
-  // Referência do arquivo no OneDrive (file_resource.file_path = 'onedrive:<itemId>').
   const frIds = documents.map((d) => d.file_resource_id).filter((v) => v != null);
   const fileResources = frIds.length
     ? await crud.list(
@@ -265,7 +234,7 @@ async function contractsByEnterprise(actor, entIds) {
       due_date: doc.due_date,
       signature_status: sig ? sig.status : null,
       signed_date: sig ? sig.signed_date : null,
-      item_id // itemId do OneDrive quando o contrato mora lá; null caso contrário
+      item_id
     });
     byEnt.set(l.enterprise_id, arr);
   }
@@ -273,8 +242,6 @@ async function contractsByEnterprise(actor, entIds) {
   return byEnt;
 }
 
-// Monta a visão "empresa + contratos" a partir de um filtro (where) sobre a
-// tabela enterprise. Reusado por "Minhas empresas", "Pendentes" e "Todas".
 async function withContracts(actor, where) {
   const enterprises = await crud.list(
     'enterprise',
@@ -296,8 +263,6 @@ async function withContracts(actor, where) {
   });
 }
 
-// "Minhas empresas": somente as empresas criadas pelo usuário logado, incluindo
-// seus contratos/documentos e o status de cada um (documento + assinatura).
 async function listMine(user) {
   const actor = user || SYSTEM_USER;
   const personUuid = user && user.sub;
@@ -314,8 +279,6 @@ async function listMine(user) {
   return withContracts(actor, { active: true, created_by_person_id: person.id });
 }
 
-// Todas as empresas ativas (mínimo para seleção em dropdowns), sem paginação.
-// Inclui os campos usados para pré-preencher variáveis de contrato.
 async function listAllSelectable(user) {
   const actor = user || SYSTEM_USER;
   return crud.list(
@@ -333,12 +296,8 @@ async function listAllSelectable(user) {
   );
 }
 
-// Transições/valores de status válidos (usado nos filtros e em updateStatus).
 const ENTERPRISE_STATUSES = new Set(['pending', 'active', 'suspended', 'inactive']);
 
-// Busca paginada (10/página) com contratos anexados, resolvendo a cidade a
-// partir da instituição — mesmo formato do catálogo da Home. Base das visões de
-// gestão. `where` já vem montado pelo chamador.
 async function paginateWithContracts(actor, where, page) {
   const offset = (page - 1) * PAGE_SIZE;
 
@@ -383,7 +342,6 @@ async function paginateWithContracts(actor, where, page) {
   return { items, page, pageSize: PAGE_SIZE, hasMore };
 }
 
-// Monta o filtro de busca/cidade comum às visões de gestão.
 function buildManageWhere(base, opts) {
   const where = { ...base };
   const search = typeof opts.search === 'string' ? opts.search.trim() : '';
@@ -393,7 +351,6 @@ function buildManageWhere(base, opts) {
   return where;
 }
 
-// Visão do Gestor: fila de pendentes (status 'pending'). Só busca por nome.
 async function listPending(user, opts = {}) {
   const actor = user || SYSTEM_USER;
   const page = Math.max(1, Math.floor(Number(opts.page)) || 1);
@@ -401,7 +358,6 @@ async function listPending(user, opts = {}) {
   return paginateWithContracts(actor, where, page);
 }
 
-// Visão do Gestor: catálogo completo. Busca por nome, cidade e status.
 async function listManage(user, opts = {}) {
   const actor = user || SYSTEM_USER;
   const page = Math.max(1, Math.floor(Number(opts.page)) || 1);
@@ -411,8 +367,6 @@ async function listManage(user, opts = {}) {
   return paginateWithContracts(actor, where, page);
 }
 
-// Aprovação/mudança de status pelo Gestor. Valida o valor do enum, atualiza por
-// uuid e registra na trilha de auditoria (quem mudou, de quê para quê).
 async function updateStatus(user, uuid, status, requestId) {
   const actor = user || SYSTEM_USER;
   if (!uuid) throw new HttpError(400, 'uuid_required');
@@ -445,9 +399,6 @@ async function updateStatus(user, uuid, status, requestId) {
   return rows[0];
 }
 
-// Cadastro de empresa pelo usuário ("Enviar para análise"). Nasce com
-// status 'pending' (aguardando análise da gestão) e vinculada ao usuário.
-// Se vier um arquivo, cria file_resource + document + enterprise_document.
 async function create(user, body, file, requestId) {
   const actor = user || SYSTEM_USER;
   const personUuid = user && user.sub;
@@ -464,7 +415,6 @@ async function create(user, body, file, requestId) {
   const name = (body.name || '').trim();
   if (!name) throw new HttpError(400, 'name_required');
 
-  // Validação de CNPJ + unicidade (quando informado).
   const cnpj = body.cnpj ? onlyDigits(body.cnpj) : null;
   if (cnpj) {
     if (!isValidCnpj(cnpj)) throw new HttpError(400, 'invalid_cnpj');
@@ -502,8 +452,6 @@ async function create(user, body, file, requestId) {
       actor
     );
   } catch (err) {
-    // Corrida: dois cadastros simultâneos do mesmo CNPJ. O índice único barra
-    // o segundo (Postgres 23505) — devolve o mesmo 409 da checagem prévia.
     if (err && err.code === '23505') throw new HttpError(409, 'cnpj_already_exists');
     throw err;
   }

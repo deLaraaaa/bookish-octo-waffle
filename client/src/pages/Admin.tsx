@@ -22,7 +22,6 @@ import { Input } from '@/components/ui/input'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { Logo } from '@/style'
 
-// Ações conhecidas da trilha — espelha o que o backend grava em audit_log.action.
 const AUDIT_ACTIONS = [
   'manager.invite',
   'manager.invite_revoke',
@@ -38,7 +37,6 @@ const AUDIT_ACTIONS = [
   'template.sync',
 ] as const
 
-// Um filtro por coluna da tabela de auditoria, combináveis entre si.
 type AuditFilters = {
   actor: string
   target: string
@@ -107,7 +105,6 @@ export default function Admin() {
   )
 }
 
-// ===================== Contas & Gestores =====================
 function AccountsTab() {
   const { t } = useTranslation()
 
@@ -135,7 +132,6 @@ function AccountsTab() {
 
   useEffect(() => {
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function onInvite(e: React.FormEvent) {
@@ -190,7 +186,6 @@ function AccountsTab() {
 
   return (
     <div className="space-y-10">
-      {/* Convite por e-mail: a regra (domínio, promoção na hora) fica no backend. */}
       <section>
         <div className="mb-4">
           <h2 className="text-xl font-semibold">{t('admin.invite.title')}</h2>
@@ -211,7 +206,6 @@ function AccountsTab() {
         </form>
       </section>
 
-      {/* Gestores com papel persistido hoje. */}
       <section>
         <div className="mb-4">
           <h2 className="text-xl font-semibold">{t('admin.managers.title')}</h2>
@@ -248,7 +242,6 @@ function AccountsTab() {
         )}
       </section>
 
-      {/* Convites (allowlist): pendentes de primeiro login ou já consumidos. */}
       <section>
         <div className="mb-4">
           <h2 className="text-xl font-semibold">{t('admin.invites.title')}</h2>
@@ -290,7 +283,6 @@ function AccountsTab() {
   )
 }
 
-// ===================== Auditoria =====================
 function AuditTab() {
   const { t } = useTranslation()
 
@@ -300,8 +292,6 @@ function AuditTab() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
 
-  // Rascunho (o que está nos campos) separado do aplicado (o que foi buscado) —
-  // a paginação continua usando os filtros aplicados mesmo com os campos sujos.
   const [draft, setDraft] = useState<AuditFilters>(EMPTY_FILTERS)
   const [applied, setApplied] = useState<AuditFilters>(EMPTY_FILTERS)
 
@@ -326,16 +316,13 @@ function AuditTab() {
 
   useEffect(() => {
     fetchLogs(EMPTY_FILTERS, 1)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const hasFilters = Object.values(applied).some(Boolean)
 
-  // Chaves i18n não podem conter ponto (é separador) — vira underline.
   const actionLabel = (a: string) =>
     t(`admin.audit.actions.${a.replace(/\./g, '_')}`, a)
 
-  // Texto auxiliar do registro: de→para nos status, contadores na mescla etc.
   function detailText(log: AuditLog): string | null {
     const d = log.detail || {}
     if (log.action === 'enterprise.status' && d.from && d.to) {
@@ -367,7 +354,6 @@ function AuditTab() {
         <p className="text-sm text-muted-foreground">{t('admin.audit.description')}</p>
       </div>
 
-      {/* Um filtro por coluna da tabela, combináveis entre si (AND). */}
       <form
         onSubmit={(e) => {
           e.preventDefault()
@@ -517,9 +503,6 @@ function AuditTab() {
   )
 }
 
-// Input com autocomplete de valores já registrados na trilha (debounce 250ms,
-// mínimo 2 letras). Selecionar uma sugestão só preenche o campo — a busca
-// continua sendo disparada pelo submit do formulário de filtros.
 function SuggestInput({
   field,
   value,
@@ -533,7 +516,7 @@ function SuggestInput({
 }) {
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [open, setOpen] = useState(false)
-  const skip = useRef(false) // seleção não deve reabrir a lista
+  const skip = useRef(false)
 
   useEffect(() => {
     if (skip.current) {
@@ -574,7 +557,6 @@ function SuggestInput({
               <button
                 type="button"
                 className="w-full truncate px-3 py-2 text-left text-sm hover:bg-muted"
-                // onMouseDown: dispara antes do blur do input fechar a lista.
                 onMouseDown={(e) => {
                   e.preventDefault()
                   skip.current = true

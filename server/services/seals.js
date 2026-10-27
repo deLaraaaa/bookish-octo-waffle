@@ -1,10 +1,4 @@
-// server/services/seals.js
 'use strict';
-
-// Chancelas: a imagem mora no OneDrive (pasta Chancelas/); aqui persistimos o
-// metadado no par file_resource -> seal (seal.file_resource_id, do schema). O
-// itemId do OneDrive fica em file_resource.file_path com o prefixo 'onedrive:'
-// (mesma convenção dos contratos).
 
 const crud = require('../crud');
 
@@ -21,7 +15,6 @@ class HttpError extends Error {
   }
 }
 
-// Persiste uma chancela recém-subida ao OneDrive (file_resource + seal).
 async function create(actor, { itemId, name }) {
   const fr = await crud.create(
     'file_resource',
@@ -38,7 +31,6 @@ async function create(actor, { itemId, name }) {
   return { uuid: seal.uuid, name: seal.name, itemId };
 }
 
-// Lista as chancelas ativas com o itemId do OneDrive (pra preview e aplicação).
 async function list(actor) {
   const seals = await crud.list(
     'seal',
@@ -62,7 +54,6 @@ async function list(actor) {
     .filter((s) => s.itemId);
 }
 
-// Resolve o itemId (OneDrive) da imagem de uma chancela pelo uuid.
 async function itemIdForUuid(actor, uuid) {
   const seal = await crud.read('seal', { select: ['file_resource_id'], where: { uuid, active: true } }, null, actor);
   if (!seal) throw new HttpError(404, 'seal_not_found');

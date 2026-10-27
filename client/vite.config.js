@@ -9,6 +9,6 @@ export default defineConfig({
         },
     },
     server: {
-        port: 3000, // precisa bater com FRONTEND_URL do backend
+        port: 3000,
     },
 });

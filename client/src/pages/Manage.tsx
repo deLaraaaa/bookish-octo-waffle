@@ -36,7 +36,6 @@ export default function Manage() {
   const [openUuid, setOpenUuid] = useState<string | null>(null)
   const [busyUuid, setBusyUuid] = useState<string | null>(null)
 
-  // ---- Todas as empresas (busca + cidade + status + paginação) ----
   const [all, setAll] = useState<MyEnterprise[]>([])
   const [allLoading, setAllLoading] = useState(true)
   const [allError, setAllError] = useState(false)
@@ -47,7 +46,6 @@ export default function Manage() {
   const [allPage, setAllPage] = useState(1)
   const [allHasMore, setAllHasMore] = useState(false)
 
-  // ---- Pendentes de aprovação (busca + paginação) ----
   const [pending, setPending] = useState<MyEnterprise[]>([])
   const [pendingLoading, setPendingLoading] = useState(true)
   const [pendingError, setPendingError] = useState(false)
@@ -56,7 +54,6 @@ export default function Manage() {
   const [pendingPage, setPendingPage] = useState(1)
   const [pendingHasMore, setPendingHasMore] = useState(false)
 
-  // Busca/filtro/paginação no backend, não no frontend.
   async function fetchAll(search: string, page: number, city: string, status: string) {
     setAllLoading(true)
     setAllError(false)
@@ -101,17 +98,13 @@ export default function Manage() {
         const insts = await api<Institution[]>('/institutions', { auth: true })
         setCities(Array.from(new Set(insts.map((i) => i.name).filter(Boolean))))
       } catch {
-        // O filtro de cidade é opcional; a lista funciona sem ele.
       }
     }
     loadCities()
     fetchAll('', 1, '', '')
     fetchPending('', 1)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Ao voltar para a aba Empresas, re-busca (reflete contratos vinculados/status
-  // mexidos na aba de Templates). A aba Templates se recarrega ao remontar.
   const firstTabRender = useRef(true)
   useEffect(() => {
     if (firstTabRender.current) {
@@ -122,10 +115,8 @@ export default function Manage() {
       fetchAll(allSearch, allPage, allCity, allStatus)
       fetchPending(pendingSearch, pendingPage)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
-  // Atualização MANUAL do status de um contrato (interim até o Webdox).
   async function updateContractStatus(documentUuid: string, status: string) {
     try {
       await api(`/storage/contracts/${documentUuid}/status`, { method: 'PATCH', body: { status }, auth: true })
@@ -137,7 +128,6 @@ export default function Manage() {
     }
   }
 
-  // Controles por contrato na gestão: ver, baixar e mudar o status manualmente.
   function contractControls(c: Contract) {
     const proxy = c.item_id
       ? `/storage/download/${c.item_id}?name=${encodeURIComponent(c.name)}`
@@ -183,8 +173,6 @@ export default function Manage() {
     )
   }
 
-  // Transição de estado (aprovar/suspender/etc); recarrega as duas listas
-  // preservando os filtros/paginação atuais.
   async function setStatus(uuid: string, status: EnterpriseStatus) {
     setBusyUuid(uuid)
     try {
@@ -267,7 +255,6 @@ export default function Manage() {
       </header>
 
       <main className="container py-8">
-        {/* Abas: separa gestão de empresas do motor de templates/contratos. */}
         <div className="mb-6 flex gap-6 border-b">
           {(['enterprises', 'templates'] as const).map((key) => (
             <button
@@ -288,14 +275,12 @@ export default function Manage() {
 
         {tab === 'enterprises' && (
         <div className="space-y-10">
-        {/* ===================== Pendentes de aprovação ===================== */}
         <section>
           <div className="mb-4">
             <h2 className="text-xl font-semibold">{t('manage.pending.title')}</h2>
             <p className="text-sm text-muted-foreground">{t('manage.pending.description')}</p>
           </div>
 
-          {/* Só campo de busca */}
           <form
             onSubmit={(e) => {
               e.preventDefault()
@@ -364,14 +349,12 @@ export default function Manage() {
           )}
         </section>
 
-        {/* ===================== Todas as empresas ===================== */}
         <section>
           <div className="mb-4">
             <h2 className="text-xl font-semibold">{t('manage.all.title')}</h2>
             <p className="text-sm text-muted-foreground">{t('manage.all.description')}</p>
           </div>
 
-          {/* Busca + cidade + status */}
           <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
             <form
               onSubmit={(e) => {
@@ -496,7 +479,6 @@ export default function Manage() {
         </div>
         )}
 
-        {/* ===================== Templates & Contratos ===================== */}
         {tab === 'templates' && <TemplatesContracts />}
       </main>
 
@@ -512,7 +494,6 @@ export default function Manage() {
   )
 }
 
-// Paginação (10/página, controlada pelo backend), igual à da Home.
 function Pager({
   page,
   hasMore,

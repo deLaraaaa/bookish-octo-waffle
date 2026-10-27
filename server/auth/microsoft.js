@@ -1,12 +1,7 @@
-// server/auth/microsoft.js
 'use strict';
-
-// Fluxo OAuth2 / OpenID Connect (Authorization Code) com o Microsoft Entra ID (Azure AD).
-// Preencha AZURE_* no .env após registrar o app no portal Azure.
 
 const TENANT = process.env.AZURE_TENANT_ID || 'common';
 const AUTHORITY = `https://login.microsoftonline.com/${TENANT}`;
-// offline_access -> refresh token; Files.ReadWrite -> gravar no OneDrive do usuário.
 const SCOPE = 'openid profile email User.Read offline_access Files.ReadWrite';
 
 function config() {
@@ -32,7 +27,7 @@ function authorizeUrl(state) {
     redirect_uri: c.redirectUri,
     response_mode: 'query',
     scope: SCOPE,
-    prompt: 'select_account', // deixa o usuário escolher a conta
+    prompt: 'select_account',
     state
   });
   return `${AUTHORITY}/oauth2/v2.0/authorize?${params.toString()}`;
@@ -60,11 +55,9 @@ async function exchangeCode(code) {
     throw new Error(`Token exchange failed (${res.status}): ${detail}`);
   }
 
-  return res.json(); // { access_token, id_token, expires_in, ... }
+  return res.json();
 }
 
-// Troca um refresh_token por um access_token novo (o Graph também rotaciona o
-// refresh_token — o chamador deve regravar o novo).
 async function refreshToken(refresh) {
   const c = config();
   const body = new URLSearchParams({
@@ -86,7 +79,7 @@ async function refreshToken(refresh) {
     throw new Error(`Refresh failed (${res.status}): ${detail}`);
   }
 
-  return res.json(); // { access_token, refresh_token, expires_in, ... }
+  return res.json();
 }
 
 async function fetchProfile(accessToken) {
@@ -104,7 +97,7 @@ async function fetchProfile(accessToken) {
   const email = (me.mail || me.userPrincipalName || '').toLowerCase();
 
   return {
-    oid: me.id, // object id estável da conta Microsoft (não muda quando o e-mail é renomeado)
+    oid: me.id,
     name: me.displayName || email,
     email
   };

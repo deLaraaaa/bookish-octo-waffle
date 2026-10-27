@@ -1,4 +1,3 @@
-// server/logger.js
 'use strict';
 
 function log(level, message, meta = {}) {
@@ -9,7 +8,6 @@ function log(level, message, meta = {}) {
     ...meta
   };
 
-  // stdout/stderr para Loki/Promtail
   const line = JSON.stringify(entry);
   if (level === 'error') process.stderr.write(line + '\n');
   else process.stdout.write(line + '\n');

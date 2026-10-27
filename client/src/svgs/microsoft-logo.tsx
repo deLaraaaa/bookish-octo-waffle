@@ -1,14 +1,8 @@
 export type MicrosoftLogoProps = {
-  /** Tamanho (largura/altura) em px. Padrão 16. */
   size?: number
   className?: string
 }
 
-/**
- * Logo da Microsoft (4 quadrados), monocromático.
- * Usa `currentColor`, então herda a cor do texto (no botão de login = branco).
- * Para uso no botão "Entrar com Microsoft".
- */
 export function MicrosoftLogo({ size = 16, className }: MicrosoftLogoProps) {
   return (
     <svg

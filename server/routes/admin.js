@@ -1,4 +1,3 @@
-// server/routes/admin.js
 'use strict';
 
 const express = require('express');
@@ -12,11 +11,8 @@ function sendError(res, { message = 'Internal error', status = 500, stack } = {}
   res.status(status).send({ Error: message, Stack: stack });
 }
 
-// Toda administração exige sessão com papel ADMIN. A regra vive aqui, no
-// backend: qualquer outro papel recebe 403 (nunca confiar só na UI).
 router.use(requireAuth, requireRole('ADMIN'));
 
-// Convida um e-mail para virar Gestor (promove na hora se já existir login).
 router.post('/manager-invites', async (req, res) => {
   try {
     const data = await admin.createManagerInvite(req.user, req.body || {}, req.requestId);
@@ -26,7 +22,6 @@ router.post('/manager-invites', async (req, res) => {
   }
 });
 
-// Lista os convites de Gestor e seu estado (consumido ou pendente).
 router.get('/manager-invites', async (_req, res) => {
   try {
     const data = await admin.listManagerInvites();
@@ -36,7 +31,6 @@ router.get('/manager-invites', async (_req, res) => {
   }
 });
 
-// Revoga um convite (só bloqueia novas promoções).
 router.delete('/manager-invites/:email', async (req, res) => {
   try {
     const data = await admin.revokeManagerInvite(req.user, req.params.email, req.requestId);
@@ -46,7 +40,6 @@ router.delete('/manager-invites/:email', async (req, res) => {
   }
 });
 
-// Gestores ativos hoje (papel persistido em person.role_id).
 router.get('/managers', async (_req, res) => {
   try {
     res.send(await admin.listManagers());
@@ -55,7 +48,6 @@ router.get('/managers', async (_req, res) => {
   }
 });
 
-// Rebaixa um Gestor (vale a partir do próximo login — o papel vive no JWT).
 router.delete('/managers/:uuid', async (req, res) => {
   try {
     const data = await admin.demoteManager(req.user, req.params.uuid, req.requestId);
@@ -65,7 +57,6 @@ router.delete('/managers/:uuid', async (req, res) => {
   }
 });
 
-// Trilha de auditoria (paginada; filtros combináveis: um por coluna).
 router.get('/audit-logs', async (req, res) => {
   try {
     const data = await audit.list(req.user, {
@@ -82,7 +73,6 @@ router.get('/audit-logs', async (req, res) => {
   }
 });
 
-// Sugestões de autocomplete do filtro da trilha (valores já registrados).
 router.get('/audit-logs/suggest', async (req, res) => {
   try {
     res.send(await audit.suggest(req.user, { q: req.query.q, field: req.query.field }));

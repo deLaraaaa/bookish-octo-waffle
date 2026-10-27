@@ -1,4 +1,3 @@
-// server/server.js
 require('dotenv').config({ path: require('path').resolve(__dirname, '..', '.env') });
 
 const express = require('express');
@@ -33,5 +32,5 @@ const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
-  contractJobs.start(); // worker de geração assíncrona de contratos
+  contractJobs.start();
 });

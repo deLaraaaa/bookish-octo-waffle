@@ -1,4 +1,3 @@
-// server/auth/twofactor.js
 'use strict';
 
 const crypto = require('crypto');
@@ -6,12 +5,11 @@ const crud = require('../crud');
 const email = require('./email');
 
 const SYSTEM_USER = 'system:auth';
-const CODE_TTL_MS = 10 * 60 * 1000; // 10 minutos
+const CODE_TTL_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 const SECRET = process.env.JWT_SECRET || 'dev-insecure-secret-change-me';
 
 function generateCode() {
-  // 4 dígitos, sempre com zero à esquerda.
   return String(crypto.randomInt(0, 10000)).padStart(4, '0');
 }
 
@@ -73,7 +71,6 @@ async function verifyCode(identity, code) {
     return { ok: false, reason: 'invalid' };
   }
 
-  // Sucesso: consome o código.
   await crud.update(
     'two_factor_code',
     { consumed_at: new Date() },

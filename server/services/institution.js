@@ -1,4 +1,3 @@
-// server/services/institution.js
 'use strict';
 
 const crud = require('../crud');

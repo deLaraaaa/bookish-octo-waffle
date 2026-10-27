@@ -21,7 +21,6 @@ export default function Home() {
   const { t } = useTranslation()
   const { account, logout } = useAuth()
 
-  // Catálogo público (paginado: 10 por página, controlado pelo backend)
   const [enterprises, setEnterprises] = useState<Enterprise[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -30,11 +29,9 @@ export default function Home() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [openUuid, setOpenUuid] = useState<string | null>(null)
-  // Filtro por cidade de origem — opções vêm da tabela institution.
   const [cities, setCities] = useState<string[]>([])
   const [city, setCity] = useState('')
 
-  // Minhas empresas (criadas pelo usuário)
   const [mine, setMine] = useState<MyEnterprise[]>([])
   const [mineError, setMineError] = useState(false)
   const [openMineUuid, setOpenMineUuid] = useState<string | null>(null)
@@ -50,7 +47,6 @@ export default function Home() {
     }
   }
 
-  // Busca, filtro de cidade e paginação no backend (endpoint), não no frontend.
   async function fetchCatalog(search: string, nextPage: number, cityFilter: string) {
     setLoading(true)
     setError(false)
@@ -72,8 +68,6 @@ export default function Home() {
 
   useEffect(() => {
     async function init() {
-      // Carrega as cidades (nomes das instituições) e escolhe como padrão a
-      // cidade de origem da conta, quando ela está entre as opções.
       let initialCity = ''
       try {
         const insts = await api<Institution[]>('/institutions', { auth: true })
@@ -83,19 +77,17 @@ export default function Home() {
         initialCity = accountCity && names.includes(accountCity) ? accountCity : ''
         setCity(initialCity)
       } catch {
-        // Sem cidades: o catálogo continua funcionando sem o filtro.
       }
       fetchCatalog('', 1, initialCity)
     }
     init()
     fetchMine()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function onSearchSubmit(e: React.FormEvent) {
     e.preventDefault()
     setOpenUuid(null)
-    fetchCatalog(searchInput.trim(), 1, city) // nova busca sempre volta à página 1
+    fetchCatalog(searchInput.trim(), 1, city)
   }
 
   function onClearSearch() {
@@ -104,7 +96,6 @@ export default function Home() {
     fetchCatalog('', 1, city)
   }
 
-  // Troca de cidade: volta à página 1 e recarrega do backend.
   function onCityChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const next = e.target.value
     setCity(next)
@@ -112,7 +103,6 @@ export default function Home() {
     fetchCatalog(appliedSearch, 1, next)
   }
 
-  // Troca de página: mantém busca e cidade aplicadas e recarrega do backend.
   function goToPage(nextPage: number) {
     if (nextPage < 1 || loading) return
     setOpenUuid(null)
@@ -162,7 +152,7 @@ export default function Home() {
       </header>
 
       <main className="container space-y-10 py-8">
-        {/* ===================== Minhas empresas ===================== */}
+        {}
         <section>
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
@@ -202,16 +192,16 @@ export default function Home() {
           onCreated={fetchMine}
         />
 
-        {/* ===================== Empresas parceiras ===================== */}
+        {}
         <section>
           <div className="mb-4">
             <h2 className="text-xl font-semibold">{t('home.catalog.title')}</h2>
             <p className="text-sm text-muted-foreground">{t('home.catalog.description')}</p>
           </div>
 
-          {/* Barra de busca + filtro de cidade, lado a lado (quebra em telas estreitas) */}
+          {}
           <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-            {/* Busca via endpoint (campo + botão) */}
+            {}
             <form onSubmit={onSearchSubmit} className="flex flex-1 gap-2 sm:max-w-md">
               <Input
                 value={searchInput}
@@ -229,7 +219,7 @@ export default function Home() {
               )}
             </form>
 
-            {/* Filtro por cidade de origem (opções da tabela institution) */}
+            {}
             {cities.length > 0 && (
               <div className="flex items-center gap-2">
                 <label htmlFor="city-filter" className="whitespace-nowrap text-sm font-medium">
@@ -264,7 +254,7 @@ export default function Home() {
           ) : (
             <>
               <ul className="space-y-2">
-                {/* Catálogo mostra só dados públicos — contratos/status ficam na gestão. */}
+                {}
                 {enterprises.map((e) => (
                   <EnterpriseRow
                     key={e.uuid}
@@ -277,7 +267,7 @@ export default function Home() {
                 ))}
               </ul>
 
-              {/* Paginação: 10 por página, controlada pelo backend */}
+              {}
               <div className="mt-4 flex items-center justify-between gap-3">
                 <Button
                   variant="outline"

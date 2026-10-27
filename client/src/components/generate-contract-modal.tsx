@@ -13,7 +13,6 @@ type Props = {
   onGenerated: () => void
 }
 
-// Normaliza um nome de variável para casar com campos de empresa (sem acento, minúsculo).
 const DIACRITICS = new RegExp('[\\u0300-\\u036f]', 'g')
 function norm(s: string): string {
   return s
@@ -23,7 +22,6 @@ function norm(s: string): string {
     .replace(/[^a-z0-9]/g, '')
 }
 
-// Deriva o valor de uma variável a partir de uma empresa, quando o nome casa.
 function fromEnterprise(variable: string, e: EnterpriseOption): string | null {
   const addr = [e.street, e.number].filter(Boolean).join(', ')
   const full = [addr, e.neighborhood, [e.city, e.state].filter(Boolean).join('/')]
@@ -70,7 +68,6 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
 
   const set = (k: string, v: string) => setValues((s) => ({ ...s, [k]: v }))
 
-  // Reseta ao (re)abrir com um template.
   useEffect(() => {
     if (!template) return
     setValues(Object.fromEntries(variables.map((v) => [v, ''])))
@@ -81,7 +78,6 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
     setError(null)
   }, [template, variables])
 
-  // Carrega TODAS as empresas (sem paginação) para o seletor.
   useEffect(() => {
     if (!open) return
     api<EnterpriseOption[]>('/enterprises/all', { auth: true })
@@ -89,7 +85,6 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
       .catch(() => setEnterprises([]))
   }, [open])
 
-  // Fecha com Esc.
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -122,7 +117,6 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
     }
     setSubmitting(true)
     try {
-      // Geração é assíncrona: enfileira e acompanha o job até terminar.
       const job = await enqueueContract({
         templateUuid: template!.uuid,
         values,
@@ -168,7 +162,7 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4 px-5 py-5">
-          {/* Empresa (opcional): pré-preenche as variáveis E vincula o contrato a ela */}
+          {}
           {enterprises.length > 0 && (
             <div className="grid gap-1.5">
               <Label htmlFor="from-enterprise">{t('templates.generate.enterprise')}</Label>
@@ -199,7 +193,7 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
             </div>
           )}
 
-          {/* Campos por variável */}
+          {}
           {variables.length === 0 ? (
             <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
               {t('templates.generate.noVariables')}
@@ -215,14 +209,12 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
             </div>
           )}
 
-          {/* Nome do arquivo */}
           <div className="grid gap-1.5">
             <Label htmlFor="out-name">{t('templates.generate.outName')}</Label>
             <Input id="out-name" value={outName} onChange={(e) => setOutName(e.target.value)} />
             <p className="text-xs text-muted-foreground">{t('templates.generate.outNameHint')}</p>
           </div>
 
-          {/* PDF */}
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={asPdf} onChange={(e) => setAsPdf(e.target.checked)} />
             {t('templates.generate.asPdf')}

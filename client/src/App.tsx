@@ -31,11 +31,9 @@ function Protected({
   if (!account) {
     return <Navigate to="/login" replace />
   }
-  // Sessão válida mas onboarding pendente -> força o onboarding.
   if (!account.onboarding_completed) {
     return <Navigate to="/onboarding" replace />
   }
-  // Guarda por papel: sem o papel exigido, volta ao catálogo.
   if (roles && !(account.role && roles.includes(account.role))) {
     return <Navigate to="/" replace />
   }
