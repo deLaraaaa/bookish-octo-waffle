@@ -21,7 +21,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
-const RESEND_MS = 30_000; // cooldown de 30s entre reenvios
+const RESEND_MS = 30_000;
 
 export default function TwoFactor() {
   const { t } = useTranslation();
@@ -42,7 +42,6 @@ export default function TwoFactor() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function startCooldown() {

@@ -1,4 +1,3 @@
-// server/services/template.js
 'use strict';
 
 const PizZip = require('pizzip');
@@ -58,7 +57,6 @@ function flattenTags(tags, prefix = '') {
   return out;
 }
 
-// Lista as variáveis {{...}} declaradas no .docx.
 function detectVariables(buffer) {
   const iModule = new InspectModule();
   open(buffer, [iModule]);
@@ -73,7 +71,6 @@ function missingVariables(required, values) {
   });
 }
 
-// Valida e preenche o template, devolvendo o .docx resultante (Buffer).
 function fillTemplate(buffer, values) {
   const required = detectVariables(buffer);
   const missing = missingVariables(required, values);

@@ -1,4 +1,3 @@
-// server/services/audit.js
 'use strict';
 
 const crud = require('../crud');
@@ -7,8 +6,6 @@ const logger = require('../logger');
 const SYSTEM_USER = 'system:audit';
 const PAGE_SIZE = 10;
 
-// Registra uma ação de negócio na trilha de auditoria (append-only).
-// Nunca propaga erro: a auditoria não pode derrubar a ação principal.
 async function record(actor, action, { entity, ref = null, detail = null, requestId = null } = {}) {
   try {
     await crud.create(
@@ -30,12 +27,10 @@ async function record(actor, action, { entity, ref = null, detail = null, reques
   }
 }
 
-// Em qual coluna cada filtro textual procura: autor ou alvo do registro.
 const SEARCH_FIELDS = { actor: 'actor_email', target: 'entity_ref' };
 
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
 
-// 'YYYY-MM-DD' -> Date à meia-noite local; null se inválida.
 function parseDay(v) {
   const s = str(v);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
@@ -43,9 +38,6 @@ function parseDay(v) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-// Listagem paginada para a tela do Admin (mais recente primeiro). Filtros
-// combináveis (AND), um por coluna: actor/target (ilike), action (exato) e
-// from/to (intervalo de datas inclusivo, 'YYYY-MM-DD').
 async function list(user, opts = {}) {
   const actor = user || SYSTEM_USER;
   const page = Math.max(1, Math.floor(Number(opts.page)) || 1);
@@ -58,7 +50,6 @@ async function list(user, opts = {}) {
   const targetQ = str(opts.target);
   if (targetQ) where.entity_ref = { op: 'ilike', value: `%${targetQ}%` };
 
-  // Intervalo inclusivo: [from 00:00, to + 1 dia).
   const range = [];
   const from = parseDay(opts.from);
   if (from) range.push({ op: '>=', value: from });
@@ -70,7 +61,6 @@ async function list(user, opts = {}) {
   }
   if (range.length) where.insert_date = range;
 
-  // Busca pageSize+1 para saber se há próxima página sem um COUNT extra.
   const rows = await crud.list(
     'audit_log',
     {
@@ -92,9 +82,6 @@ async function list(user, opts = {}) {
   };
 }
 
-// Autocomplete do filtro: valores distintos já presentes na trilha que casam
-// com o trecho digitado (ex.: "ra.card" -> "ra.cardoso@catolicasc.edu.br").
-// Dedup em memória sobre os mais recentes — suficiente para a escala da trilha.
 async function suggest(user, opts = {}) {
   const actor = user || SYSTEM_USER;
   const q = str(opts.q);

@@ -1,4 +1,3 @@
-// server/auth/email.js
 'use strict';
 
 const nodemailer = require('nodemailer');
@@ -11,7 +10,6 @@ function getTransport() {
 
   const host = process.env.SMTP_HOST;
   if (!host) {
-    // Sem SMTP configurado: cai para modo "dev" (apenas loga o código).
     cached = false;
     return cached;
   }
@@ -21,8 +19,8 @@ function getTransport() {
   cached = nodemailer.createTransport({
     host,
     port,
-    secure, // 465 = SSL direto; 587 = STARTTLS
-    requireTLS: !secure, // força STARTTLS na 587 (necessário no Office 365)
+    secure,
+    requireTLS: !secure,
     auth:
       process.env.SMTP_USER && process.env.SMTP_PASS
         ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
@@ -43,7 +41,6 @@ async function sendVerificationCode(to, code) {
     `<p>Ele expira em 10 minutos. Se você não solicitou, ignore este e-mail.</p>`;
 
   if (!transport) {
-    // Fallback de desenvolvimento: o código aparece no log (Loki/Grafana).
     logger.warn('two_factor_code_dev', { to, code });
     return { delivered: false, dev: true };
   }
@@ -53,8 +50,6 @@ async function sendVerificationCode(to, code) {
     logger.info('two_factor_code_sent', { to });
     return { delivered: true };
   } catch (e) {
-    // Não derruba o fluxo se o SMTP falhar: registra o erro e o código no log
-    // para que ainda seja possível concluir a verificação durante o desenvolvimento.
     logger.error('two_factor_code_send_failed', { to, error: e.message });
     logger.warn('two_factor_code_dev', { to, code });
     return { delivered: false, error: e.message };

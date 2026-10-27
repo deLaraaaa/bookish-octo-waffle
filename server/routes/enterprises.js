@@ -1,4 +1,3 @@
-// server/routes/enterprises.js
 'use strict';
 
 const express = require('express');
@@ -8,7 +7,6 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Arquivo opcional do cadastro fica em memória e vai para file_resource.content.
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }
@@ -40,9 +38,6 @@ router.get('/mine', requireAuth, async (req, res) => {
   }
 });
 
-// --- Gestão (papel MANAGER/ADMIN) ---
-
-// Empresas aguardando análise (status 'pending') + contratos.
 router.get('/pending', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
   try {
     const data = await enterprise.listPending(req.user, {
@@ -55,7 +50,6 @@ router.get('/pending', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req,
   }
 });
 
-// Catálogo completo (todos os status) + contratos, para a gestão.
 router.get('/manage', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
   try {
     const data = await enterprise.listManage(req.user, {
@@ -70,7 +64,6 @@ router.get('/manage', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, 
   }
 });
 
-// Todas as empresas ativas (mínimo) para seleção em dropdowns da gestão.
 router.get('/all', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
   try {
     res.send(await enterprise.listAllSelectable(req.user));
@@ -79,7 +72,6 @@ router.get('/all', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res
   }
 });
 
-// Aprovar/suspender: transição de estado da empresa (pending -> active, etc).
 router.patch('/:uuid/status', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
   try {
     const data = await enterprise.updateStatus(req.user, req.params.uuid, (req.body || {}).status, req.requestId);

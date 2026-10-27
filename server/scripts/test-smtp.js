@@ -1,6 +1,3 @@
-// server/scripts/test-smtp.js
-// Testa a conexão/autenticação SMTP e envia um e-mail de teste.
-// Uso: npm run test:smtp
 'use strict';
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '..', '..', '.env') });

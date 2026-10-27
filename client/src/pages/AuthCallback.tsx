@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { setToken } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 
-// Recebe o token de sessão de contas já verificadas (que pulam o 2FA).
 export default function AuthCallback() {
   const { t } = useTranslation()
   const [params] = useSearchParams()
@@ -23,7 +22,6 @@ export default function AuthCallback() {
       navigate(account?.onboarding_completed ? '/' : '/onboarding', { replace: true })
     }
     completeLogin()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (

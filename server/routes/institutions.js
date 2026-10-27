@@ -1,4 +1,3 @@
-// server/routes/institutions.js
 'use strict';
 
 const express = require('express');

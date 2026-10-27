@@ -1,13 +1,4 @@
-// server/services/contractJobs.js
 'use strict';
-
-// Geração assíncrona de contratos. O POST /storage/contracts vira um enfileiramento
-// (linha em contract_job) e retorna na hora; este worker in-process pega os 'queued',
-// roda o export no OneDrive (via Graph) e grava o resultado. O front acompanha pelo uuid.
-//
-// O worker vive no processo da API: um setInterval que "acorda" a cada tick e drena a
-// fila. O enqueue também acorda o worker na hora (wake) pra não esperar o próximo tick.
-// Estado mora todo no banco, então reinício do processo não perde jobs (ver recover()).
 
 const db = require('../db');
 const crud = require('../crud');
@@ -28,10 +19,6 @@ class HttpError extends Error {
   }
 }
 
-// -------------------------- fila (API pública) --------------------------
-
-// Enfileira um pedido de geração. `actor` é o autor (sub/e-mail); `email` re-obtém
-// o token do Graph quando o worker rodar. Retorna { uuid, status: 'queued' }.
 async function enqueue(actor, email, { templateUuid, values, outName, asPdf, enterpriseUuid }) {
   const row = await crud.create(
     'contract_job',
@@ -47,11 +34,10 @@ async function enqueue(actor, email, { templateUuid, values, outName, asPdf, ent
     { returning: ['uuid', 'status'] },
     actor
   );
-  wake(); // não espera o próximo tick
+  wake();
   return row;
 }
 
-// Status de um job pelo uuid (pro polling do front).
 async function getByUuid(actor, uuid) {
   const job = await crud.read(
     'contract_job',
@@ -66,14 +52,9 @@ async function getByUuid(actor, uuid) {
   return job;
 }
 
-// -------------------------- worker --------------------------
-
 let timer = null;
 let ticking = false;
 
-// Reivindica UM job 'queued' de forma atômica (FOR UPDATE SKIP LOCKED): mesmo com
-// ticks sobrepostos ou múltiplos processos, cada job sai pra um só. Sem input do
-// usuário na query — seguro fora do allowlist do crud (que não expressa esse lock).
 const CLAIM_SQL = `
   UPDATE contract_job
   SET status = 'processing', started_at = now(), attempts = attempts + 1
@@ -93,8 +74,6 @@ async function claimNext() {
   return r.rows[0] || null;
 }
 
-// Faz o trabalho de verdade: mesma sequência do antigo POST síncrono, mas com o
-// token re-obtido pelo e-mail do solicitante (não há req aqui).
 async function runExport(job) {
   const token = await graphToken.accessTokenForEmail(job.requested_by_email);
 
@@ -111,7 +90,7 @@ async function runExport(job) {
   });
 
   if (job.enterprise_uuid) {
-    const file = out.pdf || out.docx; // vincula o PDF quando existir
+    const file = out.pdf || out.docx;
     const link = await contracts.linkToEnterprise(job.requested_by, {
       enterpriseUuid: job.enterprise_uuid,
       itemId: file.id,
@@ -122,8 +101,6 @@ async function runExport(job) {
   return out;
 }
 
-// 4xx (exceto 408/429) é problema do pedido — não adianta repetir. O resto (5xx,
-// rede, token) é transitório: volta pra fila até MAX_ATTEMPTS.
 function isPermanent(err) {
   const s = Number(err && err.status);
   return s >= 400 && s < 500 && s !== 408 && s !== 429;
@@ -159,7 +136,6 @@ async function markFailed(id, message) {
   );
 }
 
-// Devolve o job pra fila (falha transitória): guarda o último erro pra diagnóstico.
 async function requeue(id, message) {
   await crud.update(
     'contract_job',
@@ -185,7 +161,6 @@ async function processJob(job) {
   }
 }
 
-// Drena a fila até não sobrar 'queued'. Reentrância protegida por `ticking`.
 async function tick() {
   if (ticking) return;
   ticking = true;
@@ -205,8 +180,6 @@ function wake() {
   tick().catch((err) => logger.error('contract_job_wake_failed', { error: err.message }));
 }
 
-// Jobs deixados em 'processing' por um restart no meio do caminho voltam pra fila.
-// Worker único: qualquer 'processing' no boot é órfão de um processo que morreu.
 async function recover() {
   const rows = await crud.update(
     'contract_job',
@@ -220,10 +193,10 @@ async function recover() {
 function start() {
   if (timer) return;
   recover()
-    .then(() => wake()) // processa o que já estava enfileirado antes do boot
+    .then(() => wake())
     .catch((err) => logger.warn('contract_job_recover_failed', { error: err.message }));
   timer = setInterval(wake, POLL_MS);
-  if (timer.unref) timer.unref(); // não segura o processo vivo sozinho
+  if (timer.unref) timer.unref();
   logger.info('contract_job_worker_started', { pollMs: POLL_MS });
 }
 

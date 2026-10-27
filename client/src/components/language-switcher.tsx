@@ -3,7 +3,6 @@ import { Languages } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-// Alterna entre português e inglês.
 export function LanguageSwitcher({ className }: { className?: string }) {
   const { i18n } = useTranslation()
   const current = i18n.resolvedLanguage === 'en' ? 'en' : 'pt'

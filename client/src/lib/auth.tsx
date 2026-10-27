@@ -13,8 +13,6 @@ const AuthContext = createContext<AuthState | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account | null>(null)
   const [loading, setLoading] = useState(true)
-  // Compartilha a requisição em andamento: chamadas concorrentes (StrictMode,
-  // telas que também chamam refresh) reaproveitam a mesma promise.
   const inflight = useRef<Promise<Account | null> | null>(null)
 
   async function loadAccount(): Promise<Account | null> {
@@ -34,7 +32,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function refresh(): Promise<Account | null> {
-    // Chamadas concorrentes reaproveitam a mesma promise em andamento.
     if (inflight.current) return inflight.current
 
     const request = loadAccount()
@@ -42,7 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       return await request
     } finally {
-      // Sempre executa (sucesso ou erro): nunca deixa o inflight "preso".
       setLoading(false)
       inflight.current = null
     }
@@ -55,7 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refresh()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (

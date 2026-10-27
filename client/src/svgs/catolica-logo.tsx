@@ -1,17 +1,11 @@
 import { cn } from '@/lib/utils'
 
 export type CatolicaLogoProps = {
-  /** Tamanho (largura/altura) em px. Padrão 40. */
   size?: number
   className?: string
-  /** 'brand' = bordô (padrão); 'white' = branco (para fundos escuros/bordô). */
   variant?: 'brand' | 'white'
 }
 
-/**
- * Símbolo (livro aberto) da Católica SC.
- * Usa `currentColor`, então herda a cor do texto.
- */
 export function CatolicaLogo({ size = 40, className, variant = 'brand' }: CatolicaLogoProps) {
   return (
     <svg

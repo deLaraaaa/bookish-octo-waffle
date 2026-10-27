@@ -1,24 +1,9 @@
-// server/crud.js
 'use strict';
 
 const db = require('./db');
 
-/**
- * Security goals:
- * - No SQL injection: values are always parameterized ($1..$n)
- * - Table/column names are validated against a strict allowlist (SCHEMA)
- * - Only a small set of operators is allowed in filters
- * - UPDATE/DELETE require WHERE
- * - All CRUD methods require a `user` argument
- * - Supports legacy-like filters: { AndFilters: [[col, op, value], ...] }
- */
-
 const IDENT_RE = /^[a-z_][a-z0-9_]*$/;
 
-/**
- * Tight allowlist of tables/columns.
- * Keep this synced with your schema.sql.
- */
 const SCHEMA = Object.freeze({
   role: ['id', 'uuid', 'name', 'insert_date', 'active'],
 
@@ -181,8 +166,6 @@ const SCHEMA = Object.freeze({
   seal: ['id', 'uuid', 'name', 'create_date', 'active', 'file_resource_id']
 });
 
-const PUBLIC_READ = Object.freeze({});
-
 function requireUser(user, fnName) {
   if (!user) throw new Error(`${fnName}: user is required`);
   return user;
@@ -343,8 +326,6 @@ function buildWhere(table, where = {}, startIndex = 1) {
   for (const [rawCol, cond] of Object.entries(where || {})) {
     const col = assertColumn(table, rawCol);
 
-    // Array no topo = várias condições AND sobre a MESMA coluna
-    // (ex.: intervalo de datas: [{op:'>=',...}, {op:'<',...}]).
     if (Array.isArray(cond)) {
       for (const c of cond) pushCond(col, c);
       continue;
@@ -394,7 +375,6 @@ function normalizeWhere(table, opts, filters) {
   return whereFromAnd || {};
 }
 
-// ------------------------- CRUD -------------------------
 async function create(table, data, opts = {}, user) {
   requireUser(user, 'create');
   table = assertTable(table);
@@ -432,58 +412,6 @@ async function read(table, opts = {}, filters, user) {
     FROM ${table}
     ${where.text}
     ${orderBy}
-    LIMIT 1
-  `.trim();
-
-  const r = await db.query(sql, where.values);
-  return r.rows[0] || null;
-}
-
-async function readPublic(table, opts = {}, filters) {
-  table = assertTable(table);
-
-  const policy = PUBLIC_READ[table];
-  if (!policy) throw new Error(`readPublic: table not allowed: ${table}`);
-
-  const selectCols = assertColumns(table, policy.select);
-
-  const rawWhere = normalizeWhere(table, opts, filters);
-
-  const whereKeys = Object.keys(rawWhere || {});
-  if (whereKeys.length === 0) throw new Error('readPublicExceptional: where is required');
-  if (whereKeys.some((k) => !policy.whereColumns.includes(k))) {
-    throw new Error(`readPublicExceptional: invalid where columns: ${whereKeys.join(', ')}`);
-  }
-
-  const strictWhere = {};
-  for (const k of policy.whereColumns) {
-    if (!Object.prototype.hasOwnProperty.call(rawWhere, k)) continue;
-
-    const v = rawWhere[k];
-
-    if (v && typeof v === 'object' && !Array.isArray(v)) {
-      const op = String(v.op || '').toLowerCase();
-      throw new Error(`readPublicExceptional: operator not allowed for ${k}: ${op}`);
-    }
-
-    if (v === undefined || v === null) {
-      throw new Error(`readPublicExceptional: invalid value for ${k}`);
-    }
-
-    strictWhere[k] = v;
-  }
-
-  if (Object.keys(strictWhere).length === 0) {
-    throw new Error('readPublicExceptional: valid where is required');
-  }
-
-  const where = buildWhere(table, strictWhere, 1);
-
-  const sql = `
-    SELECT ${selectCols.join(', ')}
-    FROM ${table}
-    ${where.text}
-    ORDER BY id ASC
     LIMIT 1
   `.trim();
 
@@ -535,6 +463,7 @@ async function update(table, patch, opts = {}, user) {
   const setValues = cols.map((c) => patch[c]);
 
   const where = buildWhere(table, whereInput, cols.length + 1);
+  if (!where.text) throw new Error('update: opts.where produced no condition');
 
   const returningCols =
     opts.returning === false ? null : (opts.returning ? assertColumns(table, opts.returning) : ['*']);
@@ -561,6 +490,7 @@ async function remove(table, opts = {}, user) {
   }
 
   const where = buildWhere(table, whereInput, 1);
+  if (!where.text) throw new Error('remove: opts.where produced no condition');
 
   const returningCols =
     opts.returning === false ? null : (opts.returning ? assertColumns(table, opts.returning) : ['*']);
@@ -623,7 +553,6 @@ module.exports = {
   SCHEMA,
   create,
   read,
-  readPublic,
   list,
   update,
   remove,

@@ -24,10 +24,9 @@ type Props = {
   onStamped: () => void
 }
 
-const RENDER_WIDTH = 520 // largura de render da página (px); coordenadas 1:1 com o canvas
-const MARGIN = 20 // margem do posicionamento default (px no canvas)
+const RENDER_WIDTH = 520
+const MARGIN = 20
 
-// Caixa da chancela em px, relativa ao canvas. A altura segue a proporção da imagem.
 type Box = { left: number; top: number; width: number; height: number }
 
 export function StampContractModal({ contract, onClose, onStamped }: Props) {
@@ -35,7 +34,7 @@ export function StampContractModal({ contract, onClose, onStamped }: Props) {
   const open = contract !== null
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const aspectRef = useRef(0.4) // altura/largura da chancela; atualizado ao carregar a imagem
+  const aspectRef = useRef(0.4)
   const drag = useRef<null | { mode: 'move' | 'resize'; dx: number; dy: number }>(null)
 
   const [seals, setSeals] = useState<Seal[]>([])
@@ -49,13 +48,11 @@ export function StampContractModal({ contract, onClose, onStamped }: Props) {
   const [applying, setApplying] = useState(false)
   const uploadRef = useRef<HTMLInputElement>(null)
 
-  // Carrega as chancelas ao abrir.
   useEffect(() => {
     if (!open) return
     listSeals().then(setSeals).catch(() => setSeals([]))
   }, [open])
 
-  // Reseta ao (re)abrir para um contrato.
   useEffect(() => {
     if (!contract) return
     setSealUuid('')
@@ -64,7 +61,6 @@ export function StampContractModal({ contract, onClose, onStamped }: Props) {
     setCanvasSize(null)
   }, [contract])
 
-  // Renderiza a ÚLTIMA página do PDF no canvas.
   useEffect(() => {
     if (!contract) return
     let cancelled = false
@@ -99,8 +95,6 @@ export function StampContractModal({ contract, onClose, onStamped }: Props) {
     }
   }, [contract, t])
 
-  // Ao escolher uma chancela: carrega a imagem (blob autenticado) e sua proporção,
-  // e posiciona a caixa por padrão no canto inferior-direito.
   useEffect(() => {
     if (!sealUuid) return
     const seal = seals.find((s) => s.uuid === sealUuid)
@@ -121,13 +115,10 @@ export function StampContractModal({ contract, onClose, onStamped }: Props) {
     return () => {
       if (url) URL.revokeObjectURL(url)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sealUuid, seals])
 
-  // Reposiciona o default quando o canvas fica pronto e já há chancela.
   useEffect(() => {
     if (canvasSize && sealUrl) placeDefault()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasSize])
 
   function placeDefault() {
@@ -177,7 +168,6 @@ export function StampContractModal({ contract, onClose, onStamped }: Props) {
     try {
       ;(e.target as Element).releasePointerCapture(e.pointerId)
     } catch {
-      /* noop */
     }
   }
 
@@ -241,7 +231,6 @@ export function StampContractModal({ contract, onClose, onStamped }: Props) {
         </div>
 
         <div className="space-y-4 px-5 py-5">
-          {/* Seletor + upload de chancela */}
           <div className="grid gap-1.5">
             <Label htmlFor="seal-select">{t('templates.stamp.chooseSeal')}</Label>
             <div className="flex gap-2">
@@ -278,7 +267,6 @@ export function StampContractModal({ contract, onClose, onStamped }: Props) {
 
           <p className="text-xs text-muted-foreground">{t('templates.stamp.hint')}</p>
 
-          {/* Preview da última página com a chancela sobreposta */}
           <div className="flex justify-center overflow-auto rounded-md border bg-muted/40 p-3">
             <div className="relative" style={{ width: canvasSize?.w, height: canvasSize?.h }}>
               <canvas ref={canvasRef} className="block rounded shadow-sm" />
