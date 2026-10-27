@@ -1,0 +1,71 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: tcc-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+      APP_HOST_PROD: ${APP_HOST_PROD}
+      APP_HOST_STAGING: ${APP_HOST_STAGING}
+      GRAFANA_HOST: ${GRAFANA_HOST}
+    volumes:
+      - ./ops/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:2.9.8
+    container_name: tcc-loki
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - ./ops/loki/config.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+    networks:
+      - edge
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:2.9.8
+    container_name: tcc-promtail
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./ops/promtail/config.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - edge
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: tcc-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_SERVER_ROOT_URL: https://${GRAFANA_HOST}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - edge
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+networks:
+  edge:
+    name: tcc-edge
+
+volumes:
+  caddy_data:
+  caddy_config:
+  loki_data:
+  grafana_data:

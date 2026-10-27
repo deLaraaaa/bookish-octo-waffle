@@ -12,7 +12,7 @@
     "migration:rollback": "npx knex --knexfile ./server/knex-config.js migrate:rollback",
     "migration:up": "npx knex --knexfile ./server/knex-config.js migrate:up",
     "migration:down": "npx knex --knexfile ./server/knex-config.js migrate:down",
-    "migration:status": "npx knex --knexfile ./server/knex-config.js migrate:status"
+    "migration:status": "npx knex --knexfile ./server/knex-config.js migrate:status",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
