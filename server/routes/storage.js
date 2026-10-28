@@ -13,6 +13,7 @@ const templateEngine = require('../services/template');
 const graph = require('../services/graph');
 const graphToken = require('../services/graphToken');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { sendError } = require('../http_errors');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -20,8 +21,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 
 router.use(requireAuth, requireRole('MANAGER', 'ADMIN'));
 
 function fail(res, err) {
-  const status = err.status || 500;
-  res.status(status).json({ error: err.code || err.message || 'internal_error', details: err.details });
+  return sendError(res, err);
 }
 
 function tokenFor(req) {

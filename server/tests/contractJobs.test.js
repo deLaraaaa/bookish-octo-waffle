@@ -219,6 +219,34 @@ describe('worker: vínculo com a empresa', () => {
     })
   })
 
+  it('contrato regerado que já estava vinculado conclui com sucesso', async () => {
+    vincular.mockRejectedValue(
+      Object.assign(new Error('contract_already_linked'), { status: 409, code: 'contract_already_linked' })
+    )
+    filaDoBanco({ ...JOB, enterprise_uuid: 'e-1' })
+
+    await contractJobs.enqueue(ATOR, EMAIL, { templateUuid: 't-1' })
+    await aguardarMarcacao()
+
+    expect(marcacoes()[0].status).toBe('done')
+    expect(JSON.parse(marcacoes()[0].result).linked).toEqual({
+      enterpriseUuid: 'e-1',
+      already_linked: true
+    })
+  })
+
+  it('outra falha ao vincular continua derrubando o pedido', async () => {
+    vincular.mockRejectedValue(
+      Object.assign(new Error('enterprise_not_found'), { status: 404, code: 'enterprise_not_found' })
+    )
+    filaDoBanco({ ...JOB, enterprise_uuid: 'e-1' })
+
+    await contractJobs.enqueue(ATOR, EMAIL, { templateUuid: 't-1' })
+    await aguardarMarcacao()
+
+    expect(marcacoes()[0].status).toBe('failed')
+  })
+
   it('sem empresa, não vincula nada', async () => {
     filaDoBanco(JOB)
 

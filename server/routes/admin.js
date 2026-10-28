@@ -1,15 +1,12 @@
 'use strict';
 
 const express = require('express');
+const { sendError } = require('../http_errors');
 const admin = require('../services/admin');
 const audit = require('../services/audit');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
-
-function sendError(res, { message = 'Internal error', status = 500, stack } = {}) {
-  res.status(status).send({ Error: message, Stack: stack });
-}
 
 router.use(requireAuth, requireRole('ADMIN'));
 

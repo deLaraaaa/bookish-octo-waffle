@@ -91,12 +91,17 @@ async function runExport(job) {
 
   if (job.enterprise_uuid) {
     const file = out.pdf || out.docx;
-    const link = await contracts.linkToEnterprise(job.requested_by, {
-      enterpriseUuid: job.enterprise_uuid,
-      itemId: file.id,
-      name: file.name
-    });
-    out.linked = { enterpriseUuid: job.enterprise_uuid, ...link };
+    try {
+      const link = await contracts.linkToEnterprise(job.requested_by, {
+        enterpriseUuid: job.enterprise_uuid,
+        itemId: file.id,
+        name: file.name
+      });
+      out.linked = { enterpriseUuid: job.enterprise_uuid, ...link };
+    } catch (err) {
+      if (!err || err.code !== 'contract_already_linked') throw err;
+      out.linked = { enterpriseUuid: job.enterprise_uuid, already_linked: true };
+    }
   }
   return out;
 }

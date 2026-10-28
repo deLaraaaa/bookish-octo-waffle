@@ -13,6 +13,7 @@ import {
   type Paginated,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { errorMessage } from '@/lib/errors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LanguageSwitcher } from '@/components/language-switcher'
@@ -181,8 +182,8 @@ export default function Manage() {
         fetchAll(allSearch, allPage, allCity, allStatus),
         fetchPending(pendingSearch, pendingPage),
       ])
-    } catch {
-      setAllError(true)
+    } catch (err) {
+      toast.error(errorMessage(t, err, 'manage.statusError'))
     } finally {
       setBusyUuid(null)
     }

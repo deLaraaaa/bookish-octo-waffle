@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowLeft, X } from 'lucide-react'
 import { api, enqueueContract, pollContractJob, type EnterpriseOption, type Template } from '@/lib/api'
+import { errorMessage } from '@/lib/errors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -126,17 +127,14 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
       })
       const done = await pollContractJob(job.uuid)
       if (done.status === 'failed') {
-        if ((done.error || '').includes('missing_variables')) setError(t('templates.generate.missingVariables'))
-        else setError(t('templates.generate.error'))
+        setError(errorMessage(t, new Error(done.error || ''), 'templates.generate.error'))
         return
       }
       toast.success(t('templates.generate.success'))
       onGenerated()
       onClose()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : ''
-      if (msg.includes('missing_variables')) setError(t('templates.generate.missingVariables'))
-      else setError(t('templates.generate.error'))
+      setError(errorMessage(t, err, 'templates.generate.error'))
     } finally {
       setSubmitting(false)
     }

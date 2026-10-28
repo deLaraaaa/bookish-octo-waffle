@@ -9,6 +9,7 @@ import {
   type GeneratedContract,
   type Template,
 } from '@/lib/api'
+import { errorMessage } from '@/lib/errors'
 import { Button } from '@/components/ui/button'
 import { GenerateContractModal } from '@/components/generate-contract-modal'
 import { StampContractModal } from '@/components/stamp-contract-modal'
@@ -26,11 +27,11 @@ export function TemplatesContracts() {
 
   const [templates, setTemplates] = useState<Template[]>([])
   const [templatesLoading, setTemplatesLoading] = useState(true)
-  const [templatesError, setTemplatesError] = useState(false)
+  const [templatesError, setTemplatesError] = useState<string | null>(null)
 
   const [contracts, setContracts] = useState<GeneratedContract[]>([])
   const [contractsLoading, setContractsLoading] = useState(true)
-  const [contractsError, setContractsError] = useState(false)
+  const [contractsError, setContractsError] = useState<string | null>(null)
 
   const [importing, setImporting] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -41,12 +42,12 @@ export function TemplatesContracts() {
 
   async function loadTemplates() {
     setTemplatesLoading(true)
-    setTemplatesError(false)
+    setTemplatesError(null)
     try {
       const data = await api<{ templates: Template[] }>('/storage/templates', { auth: true })
       setTemplates(data.templates)
-    } catch {
-      setTemplatesError(true)
+    } catch (err) {
+      setTemplatesError(errorMessage(t, err, 'templates.templates.loadError'))
     } finally {
       setTemplatesLoading(false)
     }
@@ -54,12 +55,12 @@ export function TemplatesContracts() {
 
   async function loadContracts() {
     setContractsLoading(true)
-    setContractsError(false)
+    setContractsError(null)
     try {
       const data = await api<{ contracts: GeneratedContract[] }>('/storage/contracts', { auth: true })
       setContracts(data.contracts)
-    } catch {
-      setContractsError(true)
+    } catch (err) {
+      setContractsError(errorMessage(t, err, 'templates.contracts.loadError'))
     } finally {
       setContractsLoading(false)
     }
@@ -168,7 +169,7 @@ export function TemplatesContracts() {
           {templatesLoading ? (
             <p className="text-sm text-muted-foreground">{t('manage.loading')}</p>
           ) : templatesError ? (
-            <p className="text-sm text-destructive">{t('templates.templates.loadError')}</p>
+            <p className="text-sm text-destructive">{templatesError}</p>
           ) : templates.length === 0 ? (
             <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
               {t('templates.templates.empty')}
@@ -211,7 +212,7 @@ export function TemplatesContracts() {
           {contractsLoading ? (
             <p className="text-sm text-muted-foreground">{t('manage.loading')}</p>
           ) : contractsError ? (
-            <p className="text-sm text-destructive">{t('templates.contracts.loadError')}</p>
+            <p className="text-sm text-destructive">{contractsError}</p>
           ) : contracts.length === 0 ? (
             <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
               {t('templates.contracts.empty')}

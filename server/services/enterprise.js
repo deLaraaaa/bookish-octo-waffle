@@ -298,8 +298,9 @@ async function listAllSelectable(user) {
 
 const ENTERPRISE_STATUSES = new Set(['pending', 'active', 'suspended', 'inactive']);
 
-async function paginateWithContracts(actor, where, page) {
+async function paginateWithContracts(actor, where, page, cidadeAlvo = '') {
   const offset = (page - 1) * PAGE_SIZE;
+  const filtraCidade = Boolean(cidadeAlvo);
 
   const [institutions, rows] = await Promise.all([
     crud.list(
@@ -314,18 +315,30 @@ async function paginateWithContracts(actor, where, page) {
         select: ['id', ...CATALOG_FIELDS, 'cnpj', 'contact_email'],
         where,
         orderBy: [{ column: 'name', direction: 'ASC' }],
-        limit: PAGE_SIZE + 1,
-        offset
+        ...(filtraCidade ? {} : { limit: PAGE_SIZE + 1, offset })
       },
       null,
       actor
     )
   ]);
 
-  const hasMore = rows.length > PAGE_SIZE;
-  const pageRows = hasMore ? rows.slice(0, PAGE_SIZE) : rows;
-
   const byId = new Map(institutions.map((i) => [i.id, i]));
+
+  const elegiveis = filtraCidade
+    ? rows.filter((e) => {
+        const inst = e.institution_id != null ? byId.get(e.institution_id) : null;
+        return normalizeCity(inst?.city || e.city) === normalizeCity(cidadeAlvo);
+      })
+    : rows;
+
+  const hasMore = filtraCidade
+    ? elegiveis.length > offset + PAGE_SIZE
+    : elegiveis.length > PAGE_SIZE;
+
+  const pageRows = filtraCidade
+    ? elegiveis.slice(offset, offset + PAGE_SIZE)
+    : elegiveis.slice(0, PAGE_SIZE);
+
   const contracts = await contractsByEnterprise(actor, pageRows.map((e) => e.id));
 
   const items = pageRows.map((e) => {
@@ -346,10 +359,10 @@ function buildManageWhere(base, opts) {
   const where = { ...base };
   const search = typeof opts.search === 'string' ? opts.search.trim() : '';
   if (search) where.name = { op: 'ilike', value: `%${search}%` };
-  const city = typeof opts.city === 'string' ? opts.city.trim() : '';
-  if (city) where.city = city;
   return where;
 }
+
+const cidadeDe = (opts) => (typeof opts.city === 'string' ? opts.city.trim() : '');
 
 async function listPending(user, opts = {}) {
   const actor = user || SYSTEM_USER;
@@ -364,7 +377,7 @@ async function listManage(user, opts = {}) {
   const where = buildManageWhere({ active: true }, opts);
   const status = typeof opts.status === 'string' ? opts.status.trim() : '';
   if (status && ENTERPRISE_STATUSES.has(status)) where.status = status;
-  return paginateWithContracts(actor, where, page);
+  return paginateWithContracts(actor, where, page, cidadeDe(opts));
 }
 
 async function updateStatus(user, uuid, status, requestId) {

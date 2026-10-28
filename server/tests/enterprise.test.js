@@ -456,13 +456,51 @@ describe('listManage', () => {
     expect(consultaDe('enterprise').where.status).toBeUndefined()
   })
 
-  it('combina busca e cidade', async () => {
+  it('a busca por nome vai para o banco', async () => {
     await enterprise.listManage(USUARIO, { search: 'kohl', city: 'Joinville' })
 
     expect(consultaDe('enterprise').where).toMatchObject({
-      name: { op: 'ilike', value: '%kohl%' },
-      city: 'Joinville'
+      name: { op: 'ilike', value: '%kohl%' }
     })
+  })
+
+  it('a cidade não é comparada por igualdade exata no banco', async () => {
+    await enterprise.listManage(USUARIO, { city: 'Jaraguá do Sul' })
+
+    expect(consultaDe('enterprise').where.city).toBeUndefined()
+  })
+
+  it.each([
+    ['sem acento e em maiúsculas', 'JARAGUA DO SUL'],
+    ['com acento', 'Jaraguá do Sul'],
+    ['em minúsculas', 'jaragua do sul']
+  ])('encontra a empresa com a cidade escrita %s', async (_rotulo, escolhida) => {
+    cadastrarEmpresa(1, 'Daqui', { city: 'JARAGUA DO SUL' })
+    cadastrarEmpresa(2, 'De fora', { city: 'Joinville' })
+
+    const { items } = await enterprise.listManage(USUARIO, { city: escolhida })
+
+    expect(items.map((e) => e.name)).toEqual(['Daqui'])
+  })
+
+  it('a cidade da instituição tem precedência também na gestão', async () => {
+    banco.institution.push({ id: 7, name: 'Campus Joinville', city: 'Joinville' })
+    cadastrarEmpresa(1, 'Vinculada', { city: 'Jaraguá do Sul', institution_id: 7 })
+
+    expect((await enterprise.listManage(USUARIO, { city: 'joinville' })).items).toHaveLength(1)
+    expect((await enterprise.listManage(USUARIO, { city: 'jaragua do sul' })).items).toHaveLength(0)
+  })
+
+  it('pagina o resultado mesmo filtrando por cidade', async () => {
+    for (let i = 1; i <= 11; i++) cadastrarEmpresa(i, `Empresa ${i}`, { city: 'JARAGUA DO SUL' })
+
+    const primeira = await enterprise.listManage(USUARIO, { city: 'Jaraguá do Sul' })
+    expect(primeira.items).toHaveLength(10)
+    expect(primeira.hasMore).toBe(true)
+
+    const segunda = await enterprise.listManage(USUARIO, { city: 'Jaraguá do Sul', page: 2 })
+    expect(segunda.items).toHaveLength(1)
+    expect(segunda.hasMore).toBe(false)
   })
 
   it('pagina no banco, pedindo um registro a mais', async () => {
