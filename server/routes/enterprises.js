@@ -71,7 +71,8 @@ router.get('/all', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res
 
 router.patch('/:uuid/status', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
   try {
-    const data = await enterprise.updateStatus(req.user, req.params.uuid, (req.body || {}).status, req.requestId);
+    const body = req.body || {};
+    const data = await enterprise.updateStatus(req.user, req.params.uuid, body.status, req.requestId, body.reason);
     res.send(data);
   } catch (err) {
     sendError(res, err);

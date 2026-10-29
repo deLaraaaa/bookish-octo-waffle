@@ -19,6 +19,7 @@ import {
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { Logo } from '@/style'
 
@@ -115,6 +116,7 @@ function AccountsTab() {
   const [email, setEmail] = useState('')
   const [inviting, setInviting] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
+  const [demoting, setDemoting] = useState<Manager | null>(null)
 
   async function load() {
     setLoading(true)
@@ -155,7 +157,6 @@ function AccountsTab() {
   }
 
   async function onDemote(m: Manager) {
-    if (!window.confirm(t('admin.managers.demoteConfirm', { name: m.name }))) return
     setBusy(m.uuid)
     try {
       await demoteManager(m.uuid)
@@ -165,6 +166,7 @@ function AccountsTab() {
       toast.error(t('admin.managers.demoteError'))
     } finally {
       setBusy(null)
+      setDemoting(null)
     }
   }
 
@@ -231,7 +233,7 @@ function AccountsTab() {
                   size="sm"
                   variant="outline"
                   disabled={busy === m.uuid}
-                  onClick={() => onDemote(m)}
+                  onClick={() => setDemoting(m)}
                 >
                   <UserMinus className="mr-1 h-4 w-4" />
                   {t('admin.managers.demote')}
@@ -279,6 +281,17 @@ function AccountsTab() {
           </ul>
         )}
       </section>
+
+      <ConfirmDialog
+        open={demoting !== null}
+        destructive
+        busy={busy === demoting?.uuid}
+        title={t('admin.managers.demoteConfirm', { name: demoting?.name ?? '' })}
+        description={t('admin.managers.demoteDescription')}
+        confirmLabel={t('admin.managers.demote')}
+        onCancel={() => setDemoting(null)}
+        onConfirm={() => demoting && onDemote(demoting)}
+      />
     </div>
   )
 }

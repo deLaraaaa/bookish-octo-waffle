@@ -123,6 +123,7 @@ export type MyEnterprise = Omit<Enterprise, 'institution'> & {
   cnpj: string | null
   contact_email: string | null
   status: string
+  insert_date?: string | null
   contracts: Contract[]
 }
 
