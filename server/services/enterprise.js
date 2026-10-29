@@ -2,6 +2,7 @@
 
 const crud = require('../crud');
 const audit = require('./audit');
+const lifecycle = require('./lifecycle');
 
 const SYSTEM_USER = 'system:app';
 
@@ -392,6 +393,8 @@ async function updateStatus(user, uuid, status, requestId) {
     actor
   );
   if (!current) throw new HttpError(404, 'enterprise_not_found');
+
+  lifecycle.assertTransition('enterprise', current.status, status);
 
   const rows = await crud.update(
     'enterprise',

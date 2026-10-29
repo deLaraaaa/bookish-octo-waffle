@@ -49,7 +49,8 @@
     "not_a_manager": "Esta pessoa não é Gestora.",
     "resend_too_soon": "Aguarde alguns segundos antes de pedir outro código.",
     "too_many_codes": "Muitos códigos pedidos em pouco tempo. Tente novamente mais tarde.",
-    "azure_not_configured": "O login com a conta Microsoft não está configurado. Avise o administrador do sistema."
+    "azure_not_configured": "O login com a conta Microsoft não está configurado. Avise o administrador do sistema.",
+    "invalid_transition": "Essa mudança de situação não é permitida a partir da situação atual."
   },
   "roles": {
     "STUDENT": "Aluno(a)",

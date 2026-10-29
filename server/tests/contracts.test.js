@@ -129,7 +129,6 @@ describe('syncSignature', () => {
 
   it.each([
     ['signed', 'signed'],
-    ['archived', 'signed'],
     ['pending', 'waiting_signature'],
     ['refused', 'expired'],
     ['expired', 'expired'],
@@ -141,6 +140,15 @@ describe('syncSignature', () => {
     await contracts.syncSignature(ATOR, 'd-1')
 
     expect(atualizacaoDe('signature')[1].status).toBe(esperado)
+  })
+
+  it('arquivar não mexe na assinatura, porque não diz se foi assinado', async () => {
+    leitura.document = { id: 11, status: 'archived', signature_id: 99 }
+
+    await contracts.syncSignature(ATOR, 'd-1')
+
+    expect(update).not.toHaveBeenCalled()
+    expect(create).not.toHaveBeenCalled()
   })
 
   it('carimba a data só quando a assinatura fica assinada', async () => {
@@ -221,19 +229,31 @@ describe('setStatusByItem', () => {
   })
 
   it('atualiza o documento e devolve o novo status', async () => {
-    const linha = await contracts.setStatusByItem(ATOR, { itemId: 'item-1', status: 'signed' })
+    update.mockResolvedValue([{ uuid: 'd-1', status: 'pending' }])
 
-    expect(atualizacaoDe('document')[1]).toEqual({ status: 'signed' })
+    const linha = await contracts.setStatusByItem(ATOR, { itemId: 'item-1', status: 'pending' })
+
+    expect(atualizacaoDe('document')[1]).toEqual({ status: 'pending' })
     expect(atualizacaoDe('document')[2].where).toEqual({ uuid: 'd-1' })
-    expect(linha).toEqual({ uuid: 'd-1', status: 'signed' })
+    expect(linha).toEqual({ uuid: 'd-1', status: 'pending' })
+  })
+
+  it('recusa transição ilegal antes de tocar no banco', async () => {
+    leitura.document = { id: 11, uuid: 'd-1', status: 'signed', signature_id: 99 }
+
+    await expect(
+      contracts.setStatusByItem(ATOR, { itemId: 'item-1', status: 'draft' })
+    ).rejects.toMatchObject({ code: 'invalid_transition', status: 409 })
+
+    expect(atualizacaoDe('document')).toBeUndefined()
   })
 
   it('mantém a assinatura coerente com o novo status do documento', async () => {
-    leitura.document = { id: 11, uuid: 'd-1', status: 'signed', signature_id: 99 }
+    leitura.document = { id: 11, uuid: 'd-1', status: 'pending', signature_id: 99 }
 
     await contracts.setStatusByItem(ATOR, { itemId: 'item-1', status: 'signed' })
 
-    expect(atualizacaoDe('signature')[1].status).toBe('signed')
+    expect(atualizacaoDe('signature')[1].status).toBe('waiting_signature')
   })
 })
 

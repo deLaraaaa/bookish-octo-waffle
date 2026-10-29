@@ -79,7 +79,25 @@ async function itemToPdf(token, itemId) {
   return call(token, `/me/drive/items/${encodeURIComponent(itemId)}/content?format=pdf`, { raw: true });
 }
 
+async function sendMail(token, { to, subject, text, html }) {
+  const payload = {
+    message: {
+      subject,
+      body: { contentType: html ? 'HTML' : 'Text', content: html || text },
+      toRecipients: [{ emailAddress: { address: to } }]
+    },
+    saveToSentItems: false
+  };
+
+  return call(token, '/me/sendMail', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+}
+
 module.exports = {
+  sendMail,
   GraphError,
   getItemByPath,
   ensureFolder,

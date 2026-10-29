@@ -10,6 +10,7 @@ const seals = require('../services/seals');
 const stamp = require('../services/stamp');
 const audit = require('../services/audit');
 const templateEngine = require('../services/template');
+const lifecycle = require('../services/lifecycle');
 const graph = require('../services/graph');
 const graphToken = require('../services/graphToken');
 const { requireAuth, requireRole } = require('../middleware/auth');
@@ -211,6 +212,8 @@ router.patch('/contracts/:documentUuid/status', async (req, res) => {
       actor(req)
     );
     if (!current) return res.status(404).json({ error: 'document_not_found' });
+
+    lifecycle.assertTransition('document', current.status, status);
 
     const rows = await crud.update(
       'document',

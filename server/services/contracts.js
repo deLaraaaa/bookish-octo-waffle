@@ -2,6 +2,7 @@
 
 const crud = require('../crud');
 const storage = require('./storage');
+const lifecycle = require('./lifecycle');
 
 const REF_PREFIX = 'onedrive:';
 
@@ -20,8 +21,9 @@ const refToItem = (fp) => String(fp).slice(REF_PREFIX.length);
 
 function signatureStatusFor(docStatus) {
   switch (docStatus) {
-    case 'signed':
     case 'archived':
+      return null;
+    case 'signed':
       return 'signed';
     case 'pending':
       return 'waiting_signature';
@@ -58,6 +60,8 @@ async function syncSignature(actor, documentUuid) {
   if (!doc) return;
 
   const status = signatureStatusFor(doc.status);
+  if (status === null) return;
+
   const signed_date = status === 'signed' ? new Date() : null;
 
   if (doc.signature_id == null) {
@@ -133,6 +137,9 @@ async function linkToEnterprise(actor, { enterpriseUuid, itemId, name }) {
 async function setStatusByItem(actor, { itemId, name, status }) {
   if (!itemId) throw new HttpError(400, 'itemId_required');
   const doc = await ensureDocument(actor, itemId, name);
+
+  lifecycle.assertTransition('document', doc.status, status);
+
   const rows = await crud.update(
     'document',
     { status },
@@ -220,4 +227,4 @@ async function listGenerated(token, actor) {
   });
 }
 
-module.exports = { HttpError, ensureDocument, syncSignature, linkToEnterprise, setStatusByItem, listUnlinked, listGenerated };
+module.exports = { HttpError, signatureStatusFor, ensureDocument, syncSignature, linkToEnterprise, setStatusByItem, listUnlinked, listGenerated };
