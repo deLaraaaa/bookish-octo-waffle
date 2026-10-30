@@ -14,6 +14,8 @@ export default defineConfig({
         'server/node_modules/**',
         'server/tests/**',
         'server/scripts/**',
+        'server/migrations/**',
+        'server/knex-config.js',
         'server/server.js'
       ]
     }

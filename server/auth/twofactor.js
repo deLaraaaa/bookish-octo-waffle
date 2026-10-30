@@ -3,11 +3,12 @@
 const crypto = require('crypto');
 const crud = require('../crud');
 const email = require('./email');
+const { jwtSecret } = require('./secret');
 
 const SYSTEM_USER = 'system:auth';
 const CODE_TTL_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
-const SECRET = process.env.JWT_SECRET || 'dev-insecure-secret-change-me';
+const SECRET = jwtSecret();
 
 function generateCode() {
   return String(crypto.randomInt(0, 10000)).padStart(4, '0');

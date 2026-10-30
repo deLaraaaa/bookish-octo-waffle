@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master, staging]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (testes + cobertura 75%)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: |
+          npm ci
+          npm ci --prefix server
+
+      - name: Testes com gate de cobertura
+        run: npm run test:coverage:gate
+
+      - name: Publicar relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-backend
+          path: coverage/
+          retention-days: 7
+
+  frontend:
+    name: Frontend (testes + cobertura 25% + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Testes com gate de cobertura
+        run: npm run test:coverage:gate
+
+      - name: Build de produção
+        run: npm run build
+
+      - name: Publicar relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-frontend
+          path: client/coverage/
+          retention-days: 7
+
+  migrations:
+    name: Migrations aplicam em banco limpo
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: migrate:latest
+        env:
+          DATABASE_URL: postgres://postgres:ci@localhost:5432/ci
+        run: npm run migration:latest
+
+      - name: migrate:latest é idempotente
+        env:
+          DATABASE_URL: postgres://postgres:ci@localhost:5432/ci
+        run: npm run migration:latest
+
+      - name: migrate:rollback desfaz
+        env:
+          DATABASE_URL: postgres://postgres:ci@localhost:5432/ci
+        run: npm run migration:rollback

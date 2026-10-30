@@ -1,12 +1,9 @@
 'use strict';
 
 const jwt = require('jsonwebtoken');
+const { jwtSecret } = require('./secret');
 
-const SECRET = process.env.JWT_SECRET || 'dev-insecure-secret-change-me';
-
-if (!process.env.JWT_SECRET) {
-  console.warn('[auth] JWT_SECRET not set; using an insecure development secret.');
-}
+const SECRET = jwtSecret();
 
 function signSession(person, role, email, opts = {}) {
   return jwt.sign(
