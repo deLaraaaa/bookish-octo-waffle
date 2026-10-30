@@ -1,21 +1,17 @@
 'use strict';
 
 const express = require('express');
+const { sendError } = require('../http_errors');
 const auth = require('../services/auth');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-function sendError(res, { message = 'Internal error', status = 500, stack } = {}) {
-  res.status(status).send({ Error: message, Stack: stack });
-}
-
 router.get('/microsoft', async (req, res) => {
   try {
-    const url = await auth.microsoftAuthUrl();
-    res.redirect(url);
+    res.redirect(await auth.microsoftAuthUrl());
   } catch (err) {
-    sendError(res, err);
+    res.redirect(auth.loginErrorUrl(err));
   }
 });
 

@@ -1,6 +1,7 @@
 'use strict';
 
 const express = require('express');
+const { sendError } = require('../http_errors');
 const multer = require('multer');
 const enterprise = require('../services/enterprise');
 const { requireAuth, requireRole } = require('../middleware/auth');
@@ -11,10 +12,6 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }
 });
-
-function sendError(res, { message = 'Internal error', status = 500, stack } = {}) {
-  res.status(status).send({ Error: message, Stack: stack });
-}
 
 router.get('/', requireAuth, async (req, res) => {
   try {
@@ -74,7 +71,8 @@ router.get('/all', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res
 
 router.patch('/:uuid/status', requireAuth, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
   try {
-    const data = await enterprise.updateStatus(req.user, req.params.uuid, (req.body || {}).status, req.requestId);
+    const body = req.body || {};
+    const data = await enterprise.updateStatus(req.user, req.params.uuid, body.status, req.requestId, body.reason);
     res.send(data);
   } catch (err) {
     sendError(res, err);

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FileText, Link2, Loader2, X } from 'lucide-react'
 import { api, type LinkableContract } from '@/lib/api'
+import { errorMessage } from '@/lib/errors'
 import { Button } from '@/components/ui/button'
 
 type Props = {
@@ -50,8 +51,8 @@ export function LinkContractModal({ enterprise, onClose, onLinked }: Props) {
       toast.success(t('templates.link.success'))
       setItems((cur) => cur.filter((x) => x.itemId !== c.itemId))
       onLinked()
-    } catch {
-      toast.error(t('templates.link.error'))
+    } catch (err) {
+      toast.error(errorMessage(t, err, 'templates.link.error'))
     } finally {
       setLinking(null)
     }

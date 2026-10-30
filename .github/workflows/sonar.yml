@@ -1,0 +1,49 @@
+name: SonarCloud
+
+on:
+  push:
+    branches: [master, staging]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: sonar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analise:
+    name: Analise estatica e cobertura
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout com historico completo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias do backend
+        run: |
+          npm ci
+          npm ci --prefix server
+
+      - name: Instalar dependencias do frontend
+        run: npm ci --prefix client
+
+      - name: Cobertura do backend
+        run: npm run test:coverage
+
+      - name: Cobertura do frontend
+        run: npm run test:coverage --prefix client
+
+      - name: Reescrever caminhos do lcov do frontend
+        run: sed -i 's|^SF:src/|SF:client/src/|' client/coverage/lcov.info
+
+      - name: Enviar para o SonarCloud
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

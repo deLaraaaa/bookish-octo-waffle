@@ -98,6 +98,11 @@ async function resolveRole(person, email, domain) {
   return roleForDomain(domain);
 }
 
+function loginErrorUrl(err) {
+  const codigo = (err && (err.code || err.message)) || 'login_failed';
+  return frontendUrl('/login', { error: codigo });
+}
+
 async function microsoftAuthUrl() {
   if (!microsoft.isConfigured()) throw new HttpError(503, 'azure_not_configured');
   const state = tokens.signState({ n: Date.now() });
@@ -237,7 +242,7 @@ async function resendTwoFactor({ challenge }) {
   const identity = await crud.read('identity', { where: { uuid: claims.sub } }, null, SYSTEM_USER);
   if (!identity) throw new HttpError(404, 'identity_not_found');
 
-  await twofactor.issueCode(identity);
+  await twofactor.issueCode(identity, { respeitarIntervalo: true });
   return { ok: true };
 }
 
@@ -309,6 +314,7 @@ async function submitOnboarding(userClaims, body) {
 
 module.exports = {
   HttpError,
+  loginErrorUrl,
   microsoftAuthUrl,
   handleMicrosoftCallback,
   verifyTwoFactor,

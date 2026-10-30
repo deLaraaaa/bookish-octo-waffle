@@ -400,7 +400,7 @@ describe('resendTwoFactor', () => {
     leitura.identity = { ...IDENTIDADE }
 
     expect(await auth.resendTwoFactor({ challenge: desafioDe() })).toEqual({ ok: true })
-    expect(emitirCodigo).toHaveBeenCalledWith(leitura.identity)
+    expect(emitirCodigo).toHaveBeenCalledWith(leitura.identity, { respeitarIntervalo: true })
   })
 })
 

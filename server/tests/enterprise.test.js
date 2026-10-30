@@ -167,7 +167,7 @@ describe('lookupCnpj', () => {
       street: 'Rua Joinville',
       number: '3800',
       neighborhood: 'Vila Lalau',
-      city: 'JARAGUA DO SUL',
+      city: 'Jaragua do Sul',
       state: 'SC',
       zip_code: '89256900',
       phone_number: '4733728000',
@@ -182,6 +182,59 @@ describe('lookupCnpj', () => {
 
     expect(dados.razao_social).toBeNull()
     expect(dados.city).toBeNull()
+  })
+
+  it('converte o endereco em caixa alta da Receita para caixa de titulo', async () => {
+    buscarNaWeb.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        logradouro: 'AVENIDA MARECHAL DEODORO DA FONSECA',
+        bairro: 'CENTRO',
+        municipio: 'SAO JOSE DOS PINHAIS',
+        uf: 'pr'
+      })
+    })
+
+    const dados = await enterprise.lookupCnpj(USUARIO, CNPJ_VALIDO)
+
+    expect(dados.street).toBe('Avenida Marechal Deodoro da Fonseca')
+    expect(dados.neighborhood).toBe('Centro')
+    expect(dados.city).toBe('Sao Jose dos Pinhais')
+    expect(dados.state).toBe('PR')
+  })
+
+  it('preserva o endereco que ja vem acentuado da fonte', async () => {
+    buscarNaWeb.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ municipio: 'Jaraguá do Sul', logradouro: 'Rua Reinoldo Rau' })
+    })
+
+    const dados = await enterprise.lookupCnpj(USUARIO, CNPJ_VALIDO)
+
+    expect(dados.city).toBe('Jaraguá do Sul')
+    expect(dados.street).toBe('Rua Reinoldo Rau')
+  })
+
+  it('nao altera a razao social, que e dado juridico', async () => {
+    buscarNaWeb.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ razao_social: 'KOHLBACH S.A.' })
+    })
+
+    expect((await enterprise.lookupCnpj(USUARIO, CNPJ_VALIDO)).razao_social).toBe('KOHLBACH S.A.')
+  })
+
+  it('devolve o CEP apenas com digitos', async () => {
+    buscarNaWeb.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ cep: '89.256-900' })
+    })
+
+    expect((await enterprise.lookupCnpj(USUARIO, CNPJ_VALIDO)).zip_code).toBe('89256900')
   })
 
   it('avisa quando o CNPJ já está cadastrado', async () => {
@@ -456,13 +509,51 @@ describe('listManage', () => {
     expect(consultaDe('enterprise').where.status).toBeUndefined()
   })
 
-  it('combina busca e cidade', async () => {
+  it('a busca por nome vai para o banco', async () => {
     await enterprise.listManage(USUARIO, { search: 'kohl', city: 'Joinville' })
 
     expect(consultaDe('enterprise').where).toMatchObject({
-      name: { op: 'ilike', value: '%kohl%' },
-      city: 'Joinville'
+      name: { op: 'ilike', value: '%kohl%' }
     })
+  })
+
+  it('a cidade não é comparada por igualdade exata no banco', async () => {
+    await enterprise.listManage(USUARIO, { city: 'Jaraguá do Sul' })
+
+    expect(consultaDe('enterprise').where.city).toBeUndefined()
+  })
+
+  it.each([
+    ['sem acento e em maiúsculas', 'JARAGUA DO SUL'],
+    ['com acento', 'Jaraguá do Sul'],
+    ['em minúsculas', 'jaragua do sul']
+  ])('encontra a empresa com a cidade escrita %s', async (_rotulo, escolhida) => {
+    cadastrarEmpresa(1, 'Daqui', { city: 'JARAGUA DO SUL' })
+    cadastrarEmpresa(2, 'De fora', { city: 'Joinville' })
+
+    const { items } = await enterprise.listManage(USUARIO, { city: escolhida })
+
+    expect(items.map((e) => e.name)).toEqual(['Daqui'])
+  })
+
+  it('a cidade da instituição tem precedência também na gestão', async () => {
+    banco.institution.push({ id: 7, name: 'Campus Joinville', city: 'Joinville' })
+    cadastrarEmpresa(1, 'Vinculada', { city: 'Jaraguá do Sul', institution_id: 7 })
+
+    expect((await enterprise.listManage(USUARIO, { city: 'joinville' })).items).toHaveLength(1)
+    expect((await enterprise.listManage(USUARIO, { city: 'jaragua do sul' })).items).toHaveLength(0)
+  })
+
+  it('pagina o resultado mesmo filtrando por cidade', async () => {
+    for (let i = 1; i <= 11; i++) cadastrarEmpresa(i, `Empresa ${i}`, { city: 'JARAGUA DO SUL' })
+
+    const primeira = await enterprise.listManage(USUARIO, { city: 'Jaraguá do Sul' })
+    expect(primeira.items).toHaveLength(10)
+    expect(primeira.hasMore).toBe(true)
+
+    const segunda = await enterprise.listManage(USUARIO, { city: 'Jaraguá do Sul', page: 2 })
+    expect(segunda.items).toHaveLength(1)
+    expect(segunda.hasMore).toBe(false)
   })
 
   it('pagina no banco, pedindo um registro a mais', async () => {
@@ -503,6 +594,45 @@ describe('updateStatus', () => {
     expect(update).not.toHaveBeenCalled()
   })
 
+  it('exige motivo para recusar um cadastro', async () => {
+    await expect(enterprise.updateStatus(USUARIO, 'e-1', 'inactive')).rejects.toMatchObject({
+      status: 400,
+      message: 'reason_required'
+    })
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it('recusa motivo curto demais para ser util', async () => {
+    await expect(enterprise.updateStatus(USUARIO, 'e-1', 'inactive', null, '  ok ')).rejects.toMatchObject({
+      status: 400,
+      message: 'reason_required'
+    })
+  })
+
+  it('recusa motivo acima do limite da coluna', async () => {
+    await expect(
+      enterprise.updateStatus(USUARIO, 'e-1', 'inactive', null, 'x'.repeat(501))
+    ).rejects.toMatchObject({ status: 400, message: 'reason_too_long' })
+  })
+
+  it('aceita a recusa quando o motivo vem preenchido', async () => {
+    await enterprise.updateStatus(USUARIO, 'e-1', 'inactive', 'req-9', '  CNPJ   sem   atividade  ')
+
+    expect(update.mock.calls[0][1]).toEqual({ status: 'inactive' })
+    expect(registrar).toHaveBeenCalledWith(USUARIO, 'enterprise.status', {
+      entity: 'enterprise',
+      ref: 'Kohlbach',
+      detail: { uuid: 'e-1', from: 'pending', to: 'inactive', reason: 'CNPJ sem atividade' },
+      requestId: 'req-9'
+    })
+  })
+
+  it('nao exige motivo para aprovar', async () => {
+    await enterprise.updateStatus(USUARIO, 'e-1', 'active')
+
+    expect(update.mock.calls[0][1]).toEqual({ status: 'active' })
+  })
+
   it('recusa empresa inexistente', async () => {
     leitura.enterprise = null
 
@@ -535,7 +665,7 @@ describe('updateStatus', () => {
     expect(registrar).toHaveBeenCalledWith(USUARIO, 'enterprise.status', {
       entity: 'enterprise',
       ref: 'Kohlbach',
-      detail: { uuid: 'e-1', from: 'pending', to: 'active' },
+      detail: { uuid: 'e-1', from: 'pending', to: 'active', reason: null },
       requestId: 'req-5'
     })
   })

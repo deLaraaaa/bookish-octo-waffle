@@ -2,7 +2,60 @@
   "common": {
     "loading": "Loading…",
     "appName": "Católica SC Partnerships",
-    "backToLogin": "Back to login"
+    "backToLogin": "Back to login",
+    "back": "Back",
+    "close": "Close",
+    "cancel": "Cancel"
+  },
+  "errors": {
+    "invalid_token": "Your session has expired. Sign in again to continue.",
+    "missing_token": "Your session has expired. Sign in again to continue.",
+    "forbidden": "You do not have permission for this action.",
+    "unauthorized": "Sign in to continue.",
+    "internal_error": "Something went wrong on our side. Please try again shortly.",
+    "route_not_found": "Resource not found.",
+    "invalid_json": "We could not read the data you sent.",
+    "file_too_large": "File is too large. The limit is 10 MB.",
+    "onedrive_not_connected": "Your account has not authorised OneDrive access yet. Sign out and back in to grant permission.",
+    "onedrive_reauth_required": "OneDrive authorisation has expired. Sign out and back in to renew it.",
+    "token_decrypt_failed": "We could not read the OneDrive authorisation. Please tell the system administrator.",
+    "template_not_found": "Template not found. It may have been removed from the templates folder.",
+    "invalid_docx": "The file is not a valid .docx.",
+    "invalid_template": "The template has a markup error. Check the variables written in double braces.",
+    "render_failed": "We could not fill in the template.",
+    "missing_variables": "Some information is missing to fill in the contract.",
+    "job_timeout": "Generation is taking longer than usual and is still running. Check the contract list shortly.",
+    "job_not_found": "Generation request not found.",
+    "contract_already_linked": "This contract is already linked to a company.",
+    "itemId_required": "Select a contract.",
+    "enterpriseUuid_and_itemId_required": "Select both the company and the contract.",
+    "seal_not_found": "Seal not found.",
+    "seal_file_not_found": "The seal file could not be found.",
+    "invalid_image": "The seal must be a PNG or JPG file.",
+    "invalid_page": "Invalid page for applying the seal.",
+    "invalid_size": "Set a valid size for the seal.",
+    "enterprise_not_found": "Company not found.",
+    "name_required": "Enter the company name.",
+    "invalid_cnpj": "Invalid CNPJ. Check the digits you entered.",
+    "cnpj_already_exists": "A company with this CNPJ is already registered.",
+    "cnpj_not_found": "CNPJ not found in the federal registry.",
+    "cnpj_provider_unavailable": "The CNPJ lookup is unavailable right now. Fill the details in manually or try again shortly.",
+    "cnpj_provider_error": "The CNPJ lookup failed. Fill the details in manually or try again shortly.",
+    "invalid_status": "Invalid status for the company.",
+    "uuid_required": "No company selected.",
+    "person_not_found": "We could not find your record. Please tell the system administrator.",
+    "institution_required": "Choose a campus to continue.",
+    "invalid_institution": "Invalid campus.",
+    "invalid_email": "Enter a valid email address.",
+    "domain_not_allowed": "Use a @catolicasc.edu.br or @catolicasc.org.br address.",
+    "manager_role_missing": "The Manager role is not configured. Please tell the system administrator.",
+    "not_a_manager": "This person is not a Manager.",
+    "resend_too_soon": "Wait a few seconds before requesting another code.",
+    "too_many_codes": "Too many codes requested in a short time. Try again later.",
+    "azure_not_configured": "Microsoft sign-in is not configured. Please tell the system administrator.",
+    "invalid_transition": "That status change is not allowed from the current status.",
+    "reason_required": "Describe the reason before rejecting this registration.",
+    "reason_too_long": "The reason is too long. Use up to 500 characters."
   },
   "roles": {
     "STUDENT": "Student",
@@ -135,7 +188,10 @@
       "footer": "After submission, staff review the registration and generate the agreement. You can track the status in \"My companies\".",
       "nameRequired": "Enter the legal name.",
       "success": "Registration submitted for review.",
-      "error": "Could not submit the registration."
+      "error": "Could not submit the registration.",
+      "requiredLegend": "Fields marked with * are required.",
+      "cnpjDuplicateNamed": "This tax ID is already registered as {{name}}.",
+      "fixCnpj": "Fix the tax ID"
     },
     "docStatus": {
       "draft": "Draft",
@@ -169,7 +225,20 @@
     "pending": {
       "title": "Pending approval",
       "description": "Registrations awaiting review. Approve to publish in the catalog.",
-      "empty": "No companies awaiting review."
+      "empty": "No companies awaiting review.",
+      "waitingToday": "today",
+      "waitingDays_one": "{{count}} day ago",
+      "waitingDays_other": "{{count}} days ago",
+      "selectAll": "Select all on this page",
+      "selectOne": "Select {{name}}",
+      "selectedCount_one": "{{count}} selected",
+      "selectedCount_other": "{{count}} selected",
+      "approveSelected": "Approve selected",
+      "clearSelection": "Clear selection",
+      "bulkDone_one": "{{count}} company approved.",
+      "bulkDone_other": "{{count}} companies approved.",
+      "bulkPartial_one": "{{count}} company could not be approved.",
+      "bulkPartial_other": "{{count}} companies could not be approved."
     },
     "all": {
       "title": "All companies",
@@ -196,6 +265,19 @@
       "downloadError": "Could not download the contract.",
       "statusUpdated": "Contract status updated.",
       "statusError": "Could not update the status."
+    },
+    "statusError": "We could not change the company status.",
+    "confirm": {
+      "rejectTitle": "Reject {{name}}?",
+      "rejectDescription": "The company leaves the queue and stops appearing in the catalog. It has to be registered again to come back.",
+      "suspendTitle": "Suspend {{name}}?",
+      "suspendDescription": "The company stops appearing in the catalog until it is reactivated.",
+      "bulkApproveTitle": "Approve {{count}} registrations?",
+      "bulkApproveDescription": "The selected companies will start appearing in the catalog.",
+      "reasonLabel": "Reason",
+      "reasonHint": "Stored in the audit trail alongside the change.",
+      "reasonPlaceholder": "E.g. Tax ID shows no activity at the federal registry.",
+      "reasonTooShort": "Describe the reason using at least 5 characters."
     }
   },
   "admin": {
@@ -228,7 +310,8 @@
       "demote": "Demote",
       "demoteConfirm": "Remove the Manager role from {{name}}? The change takes effect on their next sign-in.",
       "demoted": "Manager demoted.",
-      "demoteError": "Could not demote the manager."
+      "demoteError": "Could not demote the manager.",
+      "demoteDescription": "This person loses management access and becomes a regular user. They can be invited again later."
     },
     "invites": {
       "title": "Invites",
@@ -308,7 +391,6 @@
       "enterpriseHint": "Fills the variables with the company's data and links the contract to it.",
       "selectEnterprise": "Select a company…",
       "willLink": "The contract will be linked to this company.",
-      "prefilled": "Fields filled from the company — review and complete the rest.",
       "outName": "File name",
       "outNameHint": "No extension — the system adds .docx/.pdf.",
       "asPdf": "Also generate a PDF",
@@ -318,7 +400,12 @@
       "success": "Contract generated.",
       "error": "Could not generate the contract.",
       "missingName": "Enter a file name.",
-      "missingVariables": "Fill in all template variables."
+      "missingVariables": "Fill in all template variables.",
+      "fromRegistry": "Filled in from the company record.",
+      "reviewTitle": "Review before generating",
+      "emptyValue": "not filled in",
+      "missingCount_one": "{{count}} field is still empty.",
+      "missingCount_other": "{{count}} fields are still empty."
     },
     "link": {
       "title": "Link contract",
@@ -344,6 +431,42 @@
       "error": "Could not apply the seal.",
       "uploadSuccess": "Seal uploaded.",
       "uploadError": "Could not upload the seal."
+    },
+    "vars": {
+      "nome": "Company name",
+      "empresa": "Company name",
+      "razaosocial": "Legal name",
+      "razao": "Legal name",
+      "nomefantasia": "Trade name",
+      "cnpj": "Tax ID (CNPJ)",
+      "cpf": "Tax ID (CPF)",
+      "cidade": "City",
+      "municipio": "City",
+      "estado": "State",
+      "uf": "State",
+      "bairro": "Neighborhood",
+      "rua": "Street",
+      "logradouro": "Street",
+      "numero": "Number",
+      "complemento": "Address line 2",
+      "cep": "Postal code",
+      "endereco": "Full address",
+      "telefone": "Phone",
+      "fone": "Phone",
+      "celular": "Mobile",
+      "responsavel": "Responsible person",
+      "contato": "Contact",
+      "email": "Email",
+      "data": "Date",
+      "dataassinatura": "Signature date",
+      "datainicio": "Start date",
+      "datafim": "End date",
+      "vigencia": "Term",
+      "testemunha": "Witness",
+      "socios": "Partners",
+      "socio": "Partner",
+      "instituicao": "Institution",
+      "curso": "Program"
     }
   }
 }

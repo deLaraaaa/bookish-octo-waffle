@@ -17,7 +17,7 @@ function httpLogs() {
       logger.info('http_request', {
         request_id: requestId,
         method: req.method,
-        path: req.originalUrl,
+        path: req.path,
         status: res.statusCode,
         duration_ms: Number(ms.toFixed(2)),
         ip: req.ip,

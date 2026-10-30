@@ -19,6 +19,7 @@ function requisicao(headers = {}) {
   return {
     headers,
     method: 'GET',
+    path: '/enterprises',
     originalUrl: '/enterprises?page=2',
     ip: '10.0.0.1'
   }
@@ -80,7 +81,7 @@ describe('httpLogs', () => {
     expect(registro()).toMatchObject({
       request_id: 'req-1',
       method: 'GET',
-      path: '/enterprises?page=2',
+      path: '/enterprises',
       status: 404,
       ip: '10.0.0.1',
       user_agent: 'vitest'
@@ -97,6 +98,19 @@ describe('httpLogs', () => {
     expect(typeof duration_ms).toBe('number')
     expect(duration_ms).toBeGreaterThanOrEqual(0)
     expect(String(duration_ms).split('.')[1]?.length || 0).toBeLessThanOrEqual(2)
+  })
+
+  it('não registra a query string, que pode conter credencial', () => {
+    const req = requisicao({ 'x-request-id': 'req-1' })
+    req.path = '/auth/microsoft/callback'
+    req.originalUrl = '/auth/microsoft/callback?code=SEGREDO&state=jwt'
+    const res = resposta()
+
+    middleware(req, res, next)
+    res.emit('finish')
+
+    expect(registro().path).toBe('/auth/microsoft/callback')
+    expect(JSON.stringify(registro())).not.toContain('SEGREDO')
   })
 
   it('cada requisição recebe um identificador próprio', () => {

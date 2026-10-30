@@ -81,6 +81,8 @@ export function MyEnterpriseRow({
   statusLabel,
   actions,
   contractControls,
+  meta,
+  select,
 }: {
   enterprise: EnterpriseCard
   open: boolean
@@ -88,6 +90,8 @@ export function MyEnterpriseRow({
   statusLabel?: string
   actions?: ReactNode
   contractControls?: (contract: Contract) => ReactNode
+  meta?: ReactNode
+  select?: ReactNode
 }) {
   const { t } = useTranslation()
   const na = t('home.catalog.notProvided')
@@ -97,17 +101,23 @@ export function MyEnterpriseRow({
 
   return (
     <li className="overflow-hidden rounded-lg border bg-background">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
-      >
+      <div className={cn('flex items-center', select && 'pl-4')}>
+        {select}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className={cn(
+            'flex w-full items-center justify-between gap-3 py-3 text-left transition-colors hover:bg-muted/50',
+            select ? 'pl-3 pr-4' : 'px-4'
+          )}
+        >
         <div className="min-w-0">
           <p className="truncate font-medium">{e.name}</p>
           <p className="truncate text-sm text-muted-foreground">{address || na}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
+          {meta}
           {badge && (
             <span
               className={cn(
@@ -128,7 +138,8 @@ export function MyEnterpriseRow({
             )}
           />
         </div>
-      </button>
+        </button>
+      </div>
 
       {open && (
         <div className="space-y-4 border-t px-4 py-3">

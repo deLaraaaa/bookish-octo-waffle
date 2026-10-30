@@ -1,14 +1,11 @@
 'use strict';
 
 const express = require('express');
+const { sendError } = require('../http_errors');
 const institution = require('../services/institution');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
-
-function sendError(res, { message = 'Internal error', status = 500, stack } = {}) {
-  res.status(status).send({ Error: message, Stack: stack });
-}
 
 router.get('/', requireAuth, async (req, res) => {
   try {

@@ -13,6 +13,10 @@ import {
   type Paginated,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { errorMessage } from '@/lib/errors'
+import { daysSince, waitTone, waitToneClasses } from '@/lib/time'
+import { cn } from '@/lib/utils'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LanguageSwitcher } from '@/components/language-switcher'
@@ -25,6 +29,12 @@ const DOC_STATUSES = ['draft', 'pending', 'signed', 'refused', 'expired', 'archi
 
 type EnterpriseStatus = 'pending' | 'active' | 'suspended' | 'inactive'
 const STATUS_OPTIONS: EnterpriseStatus[] = ['pending', 'active', 'suspended', 'inactive']
+const REASON_MIN_LENGTH = 5
+
+type PendingAction =
+  | { kind: 'reject'; uuid: string; name: string }
+  | { kind: 'suspend'; uuid: string; name: string }
+  | { kind: 'bulkApprove'; uuids: string[] }
 
 export default function Manage() {
   const { t } = useTranslation()
@@ -35,6 +45,9 @@ export default function Manage() {
   const [cities, setCities] = useState<string[]>([])
   const [openUuid, setOpenUuid] = useState<string | null>(null)
   const [busyUuid, setBusyUuid] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string[]>([])
+  const [confirming, setConfirming] = useState<PendingAction | null>(null)
+  const [confirmBusy, setConfirmBusy] = useState(false)
 
   const [all, setAll] = useState<MyEnterprise[]>([])
   const [allLoading, setAllLoading] = useState(true)
@@ -82,6 +95,7 @@ export default function Manage() {
       if (search) params.set('search', search)
       const data = await api<Paginated<MyEnterprise>>(`/enterprises/pending?${params}`, { auth: true })
       setPending(data.items)
+      setSelected((cur) => cur.filter((uuid) => data.items.some((e) => e.uuid === uuid)))
       setPendingHasMore(data.hasMore)
       setPendingPage(data.page)
       setPendingSearch(search)
@@ -173,20 +187,77 @@ export default function Manage() {
     )
   }
 
-  async function setStatus(uuid: string, status: EnterpriseStatus) {
+  async function reload() {
+    await Promise.all([
+      fetchAll(allSearch, allPage, allCity, allStatus),
+      fetchPending(pendingSearch, pendingPage),
+    ])
+  }
+
+  async function setStatus(uuid: string, status: EnterpriseStatus, reason?: string) {
     setBusyUuid(uuid)
     try {
-      await api(`/enterprises/${uuid}/status`, { method: 'PATCH', body: { status }, auth: true })
-      await Promise.all([
-        fetchAll(allSearch, allPage, allCity, allStatus),
-        fetchPending(pendingSearch, pendingPage),
-      ])
-    } catch {
-      setAllError(true)
+      await api(`/enterprises/${uuid}/status`, {
+        method: 'PATCH',
+        body: reason ? { status, reason } : { status },
+        auth: true,
+      })
+      await reload()
+    } catch (err) {
+      toast.error(errorMessage(t, err, 'manage.statusError'))
     } finally {
       setBusyUuid(null)
     }
   }
+
+  async function runConfirmedAction(action: PendingAction, reason: string) {
+    setConfirmBusy(true)
+    try {
+      if (action.kind === 'bulkApprove') {
+        const results = await Promise.allSettled(
+          action.uuids.map((uuid) =>
+            api(`/enterprises/${uuid}/status`, { method: 'PATCH', body: { status: 'active' }, auth: true })
+          )
+        )
+        const failed = results.filter((r) => r.status === 'rejected').length
+        if (failed > 0) toast.error(t('manage.pending.bulkPartial', { count: failed }))
+        else toast.success(t('manage.pending.bulkDone', { count: action.uuids.length }))
+        setSelected([])
+        await reload()
+        return
+      }
+      const status: EnterpriseStatus = action.kind === 'reject' ? 'inactive' : 'suspended'
+      await api(`/enterprises/${action.uuid}/status`, {
+        method: 'PATCH',
+        body: { status, reason },
+        auth: true,
+      })
+      await reload()
+    } catch (err) {
+      toast.error(errorMessage(t, err, 'manage.statusError'))
+    } finally {
+      setConfirmBusy(false)
+      setConfirming(null)
+    }
+  }
+
+  function waitBadge(e: MyEnterprise) {
+    const days = daysSince(e.insert_date)
+    if (days === null) return null
+    return (
+      <span
+        className={cn(
+          'hidden rounded-full px-2 py-0.5 text-xs font-medium sm:inline',
+          waitToneClasses(waitTone(days))
+        )}
+      >
+        {days === 0 ? t('manage.pending.waitingToday') : t('manage.pending.waitingDays', { count: days })}
+      </span>
+    )
+  }
+
+  const toggleSelected = (uuid: string) =>
+    setSelected((cur) => (cur.includes(uuid) ? cur.filter((u) => u !== uuid) : [...cur, uuid]))
 
   function actionsFor(e: MyEnterprise) {
     const status = e.status as EnterpriseStatus
@@ -197,13 +268,25 @@ export default function Manage() {
             <Button key="approve" size="sm" disabled={busy} onClick={() => setStatus(e.uuid, 'active')}>
               {t('manage.actions.approve')}
             </Button>,
-            <Button key="reject" size="sm" variant="outline" disabled={busy} onClick={() => setStatus(e.uuid, 'inactive')}>
+            <Button
+              key="reject"
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setConfirming({ kind: 'reject', uuid: e.uuid, name: e.name })}
+            >
               {t('manage.actions.reject')}
             </Button>,
           ]
         : status === 'active'
         ? [
-            <Button key="suspend" size="sm" variant="outline" disabled={busy} onClick={() => setStatus(e.uuid, 'suspended')}>
+            <Button
+              key="suspend"
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setConfirming({ kind: 'suspend', uuid: e.uuid, name: e.name })}
+            >
               {t('manage.actions.suspend')}
             </Button>,
           ]
@@ -323,6 +406,34 @@ export default function Manage() {
             </p>
           ) : (
             <>
+              <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border bg-background px-4 py-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={selected.length === pending.length && pending.length > 0}
+                    onChange={(ev) => setSelected(ev.target.checked ? pending.map((e) => e.uuid) : [])}
+                  />
+                  {t('manage.pending.selectAll')}
+                </label>
+                {selected.length > 0 && (
+                  <>
+                    <span className="text-sm text-muted-foreground">
+                      {t('manage.pending.selectedCount', { count: selected.length })}
+                    </span>
+                    <Button
+                      size="sm"
+                      disabled={confirmBusy}
+                      onClick={() => setConfirming({ kind: 'bulkApprove', uuids: selected })}
+                    >
+                      {t('manage.pending.approveSelected')}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setSelected([])}>
+                      {t('manage.pending.clearSelection')}
+                    </Button>
+                  </>
+                )}
+              </div>
               <ul className="space-y-2">
                 {pending.map((e) => (
                   <MyEnterpriseRow
@@ -332,6 +443,16 @@ export default function Manage() {
                     onToggle={() => toggle(e.uuid)}
                     actions={actionsFor(e)}
                     contractControls={contractControls}
+                    meta={waitBadge(e)}
+                    select={
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={selected.includes(e.uuid)}
+                        aria-label={t('manage.pending.selectOne', { name: e.name })}
+                        onChange={() => toggleSelected(e.uuid)}
+                      />
+                    }
                   />
                 ))}
               </ul>
@@ -489,6 +610,46 @@ export default function Manage() {
           fetchAll(allSearch, allPage, allCity, allStatus)
           fetchPending(pendingSearch, pendingPage)
         }}
+      />
+
+      <ConfirmDialog
+        open={confirming !== null}
+        busy={confirmBusy}
+        destructive={confirming?.kind !== 'bulkApprove'}
+        title={
+          confirming?.kind === 'bulkApprove'
+            ? t('manage.confirm.bulkApproveTitle', { count: confirming.uuids.length })
+            : confirming?.kind === 'suspend'
+            ? t('manage.confirm.suspendTitle', { name: confirming.name })
+            : t('manage.confirm.rejectTitle', { name: confirming?.name ?? '' })
+        }
+        description={
+          confirming?.kind === 'bulkApprove'
+            ? t('manage.confirm.bulkApproveDescription')
+            : confirming?.kind === 'suspend'
+            ? t('manage.confirm.suspendDescription')
+            : t('manage.confirm.rejectDescription')
+        }
+        confirmLabel={
+          confirming?.kind === 'bulkApprove'
+            ? t('manage.pending.approveSelected')
+            : confirming?.kind === 'suspend'
+            ? t('manage.actions.suspend')
+            : t('manage.actions.reject')
+        }
+        reason={
+          confirming && confirming.kind !== 'bulkApprove'
+            ? {
+                label: t('manage.confirm.reasonLabel'),
+                hint: t('manage.confirm.reasonHint'),
+                placeholder: t('manage.confirm.reasonPlaceholder'),
+                minLength: REASON_MIN_LENGTH,
+                tooShort: t('manage.confirm.reasonTooShort'),
+              }
+            : undefined
+        }
+        onCancel={() => setConfirming(null)}
+        onConfirm={(reason) => confirming && runConfirmedAction(confirming, reason)}
       />
     </div>
   )

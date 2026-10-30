@@ -2,7 +2,60 @@
   "common": {
     "loading": "Carregando…",
     "appName": "Parcerias Católica SC",
-    "backToLogin": "Voltar ao login"
+    "backToLogin": "Voltar ao login",
+    "back": "Voltar",
+    "close": "Fechar",
+    "cancel": "Cancelar"
+  },
+  "errors": {
+    "invalid_token": "Sua sessão expirou. Entre novamente para continuar.",
+    "missing_token": "Sua sessão expirou. Entre novamente para continuar.",
+    "forbidden": "Você não tem permissão para esta ação.",
+    "unauthorized": "Entre na sua conta para continuar.",
+    "internal_error": "Algo deu errado do nosso lado. Tente novamente em instantes.",
+    "route_not_found": "Recurso não encontrado.",
+    "invalid_json": "Não foi possível ler os dados enviados.",
+    "file_too_large": "Arquivo muito grande. O limite é 10 MB.",
+    "onedrive_not_connected": "Sua conta ainda não autorizou o acesso ao OneDrive. Saia e entre novamente para conceder a permissão.",
+    "onedrive_reauth_required": "A autorização do OneDrive expirou. Saia e entre novamente para renová-la.",
+    "token_decrypt_failed": "Não foi possível ler a autorização do OneDrive. Avise o administrador do sistema.",
+    "template_not_found": "Modelo não encontrado. Ele pode ter sido removido da pasta de modelos.",
+    "invalid_docx": "O arquivo não é um .docx válido.",
+    "invalid_template": "O modelo tem erro de marcação. Confira as variáveis escritas entre chaves duplas.",
+    "render_failed": "Não foi possível preencher o modelo.",
+    "missing_variables": "Faltam informações para preencher o contrato.",
+    "job_timeout": "A geração está demorando mais que o normal e segue em andamento. Confira a lista de contratos em instantes.",
+    "job_not_found": "Pedido de geração não encontrado.",
+    "contract_already_linked": "Este contrato já está vinculado a uma empresa.",
+    "itemId_required": "Selecione um contrato.",
+    "enterpriseUuid_and_itemId_required": "Selecione a empresa e o contrato.",
+    "seal_not_found": "Chancela não encontrada.",
+    "seal_file_not_found": "O arquivo da chancela não foi encontrado.",
+    "invalid_image": "A chancela precisa ser um arquivo PNG ou JPG.",
+    "invalid_page": "Página inválida para aplicar a chancela.",
+    "invalid_size": "Defina um tamanho válido para a chancela.",
+    "enterprise_not_found": "Empresa não encontrada.",
+    "name_required": "Informe o nome da empresa.",
+    "invalid_cnpj": "CNPJ inválido. Confira os números digitados.",
+    "cnpj_already_exists": "Já existe uma empresa cadastrada com este CNPJ.",
+    "cnpj_not_found": "CNPJ não encontrado na base da Receita Federal.",
+    "cnpj_provider_unavailable": "A consulta de CNPJ está indisponível agora. Preencha os dados manualmente ou tente de novo em instantes.",
+    "cnpj_provider_error": "A consulta de CNPJ falhou. Preencha os dados manualmente ou tente de novo em instantes.",
+    "invalid_status": "Situação inválida para a empresa.",
+    "uuid_required": "Empresa não informada.",
+    "person_not_found": "Não encontramos seu cadastro. Avise o administrador do sistema.",
+    "institution_required": "Escolha uma unidade para continuar.",
+    "invalid_institution": "Unidade inválida.",
+    "invalid_email": "Informe um e-mail válido.",
+    "domain_not_allowed": "Use um e-mail @catolicasc.edu.br ou @catolicasc.org.br.",
+    "manager_role_missing": "O papel de Gestor não está configurado. Avise o administrador do sistema.",
+    "not_a_manager": "Esta pessoa não é Gestora.",
+    "resend_too_soon": "Aguarde alguns segundos antes de pedir outro código.",
+    "too_many_codes": "Muitos códigos pedidos em pouco tempo. Tente novamente mais tarde.",
+    "azure_not_configured": "O login com a conta Microsoft não está configurado. Avise o administrador do sistema.",
+    "invalid_transition": "Essa mudança de situação não é permitida a partir da situação atual.",
+    "reason_required": "Descreva o motivo antes de recusar o cadastro.",
+    "reason_too_long": "O motivo ficou longo demais. Use até 500 caracteres."
   },
   "roles": {
     "STUDENT": "Aluno(a)",
@@ -135,7 +188,10 @@
       "footer": "Depois do envio, a gestão analisa o cadastro e gera o termo. Você acompanha o status em \"Minhas empresas\".",
       "nameRequired": "Informe a razão social.",
       "success": "Cadastro enviado para análise.",
-      "error": "Não foi possível enviar o cadastro."
+      "error": "Não foi possível enviar o cadastro.",
+      "requiredLegend": "Campos marcados com * são obrigatórios.",
+      "cnpjDuplicateNamed": "Este CNPJ já está cadastrado como {{name}}.",
+      "fixCnpj": "Corrigir o CNPJ"
     },
     "docStatus": {
       "draft": "Rascunho",
@@ -169,7 +225,20 @@
     "pending": {
       "title": "Pendentes de aprovação",
       "description": "Cadastros aguardando análise. Aprove para publicar no catálogo.",
-      "empty": "Nenhuma empresa aguardando análise."
+      "empty": "Nenhuma empresa aguardando análise.",
+      "waitingToday": "hoje",
+      "waitingDays_one": "há {{count}} dia",
+      "waitingDays_other": "há {{count}} dias",
+      "selectAll": "Selecionar todas desta página",
+      "selectOne": "Selecionar {{name}}",
+      "selectedCount_one": "{{count}} selecionada",
+      "selectedCount_other": "{{count}} selecionadas",
+      "approveSelected": "Aprovar selecionadas",
+      "clearSelection": "Limpar seleção",
+      "bulkDone_one": "{{count}} empresa aprovada.",
+      "bulkDone_other": "{{count}} empresas aprovadas.",
+      "bulkPartial_one": "{{count}} empresa não pôde ser aprovada.",
+      "bulkPartial_other": "{{count}} empresas não puderam ser aprovadas."
     },
     "all": {
       "title": "Todas as empresas",
@@ -196,6 +265,19 @@
       "downloadError": "Não foi possível baixar o contrato.",
       "statusUpdated": "Status do contrato atualizado.",
       "statusError": "Não foi possível atualizar o status."
+    },
+    "statusError": "Não foi possível alterar a situação da empresa.",
+    "confirm": {
+      "rejectTitle": "Recusar o cadastro de {{name}}?",
+      "rejectDescription": "A empresa sai da fila e deixa de aparecer no catálogo. Para voltar, ela precisa ser cadastrada de novo.",
+      "suspendTitle": "Suspender {{name}}?",
+      "suspendDescription": "A empresa deixa de aparecer no catálogo até ser reativada.",
+      "bulkApproveTitle": "Aprovar {{count}} cadastros?",
+      "bulkApproveDescription": "As empresas selecionadas passam a aparecer no catálogo.",
+      "reasonLabel": "Motivo",
+      "reasonHint": "Fica registrado na trilha de auditoria junto com a mudança.",
+      "reasonPlaceholder": "Ex.: CNPJ sem atividade na Receita Federal.",
+      "reasonTooShort": "Descreva o motivo com pelo menos 5 caracteres."
     }
   },
   "admin": {
@@ -228,7 +310,8 @@
       "demote": "Rebaixar",
       "demoteConfirm": "Remover o papel de Gestor de {{name}}? A mudança vale a partir do próximo login.",
       "demoted": "Gestor rebaixado.",
-      "demoteError": "Não foi possível rebaixar o gestor."
+      "demoteError": "Não foi possível rebaixar o gestor.",
+      "demoteDescription": "A pessoa perde o acesso à gestão e volta a ser usuária comum. Ela pode ser convidada de novo depois."
     },
     "invites": {
       "title": "Convites",
@@ -308,7 +391,6 @@
       "enterpriseHint": "Preenche as variáveis com os dados da empresa e vincula o contrato a ela.",
       "selectEnterprise": "Selecione uma empresa…",
       "willLink": "O contrato será vinculado a esta empresa.",
-      "prefilled": "Campos preenchidos a partir da empresa — confira e complete o resto.",
       "outName": "Nome do arquivo",
       "outNameHint": "Sem extensão — o sistema adiciona .docx/.pdf.",
       "asPdf": "Gerar também em PDF",
@@ -318,7 +400,12 @@
       "success": "Contrato gerado.",
       "error": "Não foi possível gerar o contrato.",
       "missingName": "Informe o nome do arquivo.",
-      "missingVariables": "Preencha todas as variáveis do modelo."
+      "missingVariables": "Preencha todas as variáveis do modelo.",
+      "fromRegistry": "Preenchido pelo cadastro da empresa.",
+      "reviewTitle": "Confira antes de gerar",
+      "emptyValue": "não preenchido",
+      "missingCount_one": "{{count}} campo ainda sem preenchimento.",
+      "missingCount_other": "{{count}} campos ainda sem preenchimento."
     },
     "link": {
       "title": "Vincular contrato",
@@ -344,6 +431,42 @@
       "error": "Não foi possível aplicar a chancela.",
       "uploadSuccess": "Chancela enviada.",
       "uploadError": "Não foi possível enviar a chancela."
+    },
+    "vars": {
+      "nome": "Nome da empresa",
+      "empresa": "Nome da empresa",
+      "razaosocial": "Razão social",
+      "razao": "Razão social",
+      "nomefantasia": "Nome fantasia",
+      "cnpj": "CNPJ",
+      "cpf": "CPF",
+      "cidade": "Cidade",
+      "municipio": "Cidade",
+      "estado": "Estado",
+      "uf": "Estado (UF)",
+      "bairro": "Bairro",
+      "rua": "Logradouro",
+      "logradouro": "Logradouro",
+      "numero": "Número",
+      "complemento": "Complemento",
+      "cep": "CEP",
+      "endereco": "Endereço completo",
+      "telefone": "Telefone",
+      "fone": "Telefone",
+      "celular": "Celular",
+      "responsavel": "Responsável",
+      "contato": "Contato",
+      "email": "E-mail",
+      "data": "Data",
+      "dataassinatura": "Data de assinatura",
+      "datainicio": "Data de início",
+      "datafim": "Data de término",
+      "vigencia": "Vigência",
+      "testemunha": "Testemunha",
+      "socios": "Sócios",
+      "socio": "Sócio",
+      "instituicao": "Instituição",
+      "curso": "Curso"
     }
   }
 }

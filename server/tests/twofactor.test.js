@@ -91,6 +91,56 @@ describe('issueCode', () => {
   })
 })
 
+describe('limite de reenvio', () => {
+  const emitidoHa = (ms) => [{ id: 1, insert_date: new Date(Date.now() - ms) }]
+
+  it('recusa reenvio antes do intervalo de trinta segundos', async () => {
+    list.mockResolvedValue(emitidoHa(5000))
+
+    await expect(
+      twofactor.issueCode(IDENTITY, { respeitarIntervalo: true })
+    ).rejects.toMatchObject({ status: 429, code: 'resend_too_soon' })
+    expect(enviar).not.toHaveBeenCalled()
+  })
+
+  it('libera o reenvio depois do intervalo', async () => {
+    list.mockResolvedValue(emitidoHa(twofactor.RESEND_INTERVAL_MS + 1000))
+
+    await expect(twofactor.issueCode(IDENTITY, { respeitarIntervalo: true })).resolves.toBeTruthy()
+    expect(enviar).toHaveBeenCalledOnce()
+  })
+
+  it('o login não é bloqueado pelo intervalo de reenvio', async () => {
+    list.mockResolvedValue(emitidoHa(1000))
+
+    await expect(twofactor.issueCode(IDENTITY)).resolves.toBeTruthy()
+  })
+
+  it('recusa quando o teto de códigos por hora foi atingido', async () => {
+    list.mockResolvedValue(
+      Array.from({ length: twofactor.MAX_CODIGOS_POR_JANELA }, (_, i) => ({
+        id: i,
+        insert_date: new Date(Date.now() - 60000)
+      }))
+    )
+
+    await expect(twofactor.issueCode(IDENTITY)).rejects.toMatchObject({
+      status: 429,
+      code: 'too_many_codes'
+    })
+    expect(create).not.toHaveBeenCalled()
+  })
+
+  it('conta apenas os códigos da última hora, da identidade', async () => {
+    await twofactor.issueCode(IDENTITY)
+
+    const opcoes = list.mock.calls[0][1]
+    expect(opcoes.where.identity_id).toBe(42)
+    expect(opcoes.where.insert_date.op).toBe('>=')
+    expect(Date.now() - opcoes.where.insert_date.value.getTime()).toBeGreaterThan(59 * 60 * 1000)
+  })
+})
+
 describe('verifyCode', () => {
   it('consulta apenas o código mais recente ainda não consumido', async () => {
     await twofactor.verifyCode(IDENTITY, '1234')

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ArrowLeft, X } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, X } from 'lucide-react'
 import { api, enqueueContract, pollContractJob, type EnterpriseOption, type Template } from '@/lib/api'
+import { errorMessage } from '@/lib/errors'
+import { humanizeVariable, normalizeVariable, valueFromEnterprise } from '@/lib/variables'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,68 +15,35 @@ type Props = {
   onGenerated: () => void
 }
 
-const DIACRITICS = new RegExp('[\\u0300-\\u036f]', 'g')
-function norm(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(DIACRITICS, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-}
-
-function fromEnterprise(variable: string, e: EnterpriseOption): string | null {
-  const addr = [e.street, e.number].filter(Boolean).join(', ')
-  const full = [addr, e.neighborhood, [e.city, e.state].filter(Boolean).join('/')]
-    .filter(Boolean)
-    .join(' - ')
-  const map: Record<string, string | null> = {
-    nome: e.name,
-    razaosocial: e.name,
-    razao: e.name,
-    empresa: e.name,
-    cnpj: e.cnpj,
-    cidade: e.city,
-    municipio: e.city,
-    estado: e.state,
-    uf: e.state,
-    bairro: e.neighborhood,
-    rua: e.street,
-    logradouro: e.street,
-    numero: e.number,
-    cep: e.zip_code,
-    endereco: full || null,
-    telefone: e.phone_number,
-    fone: e.phone_number,
-    responsavel: e.responsible_person,
-    contato: e.responsible_person,
-    email: e.contact_email,
-  }
-  return map[norm(variable)] ?? null
-}
-
 export function GenerateContractModal({ template, onClose, onGenerated }: Props) {
   const { t } = useTranslation()
   const open = template !== null
   const variables = useMemo(() => template?.variables ?? [], [template])
 
   const [values, setValues] = useState<Record<string, string>>({})
+  const [fromRegistry, setFromRegistry] = useState<string[]>([])
   const [outName, setOutName] = useState('')
   const [asPdf, setAsPdf] = useState(true)
   const [enterprises, setEnterprises] = useState<EnterpriseOption[]>([])
   const [enterpriseUuid, setEnterpriseUuid] = useState('')
-  const [prefilled, setPrefilled] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const set = (k: string, v: string) => setValues((s) => ({ ...s, [k]: v }))
+  const labelFor = (v: string) =>
+    t(`templates.vars.${normalizeVariable(v)}`, { defaultValue: humanizeVariable(v) })
+
+  function set(k: string, v: string) {
+    setValues((s) => ({ ...s, [k]: v }))
+    setFromRegistry((cur) => cur.filter((name) => name !== k))
+  }
 
   useEffect(() => {
     if (!template) return
     setValues(Object.fromEntries(variables.map((v) => [v, ''])))
+    setFromRegistry([])
     setOutName(template.name.replace(/\.docx$/i, ''))
     setAsPdf(true)
     setEnterpriseUuid('')
-    setPrefilled(false)
     setError(null)
   }, [template, variables])
 
@@ -96,17 +65,26 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
 
   function applyEnterprise(uuid: string) {
     const e = enterprises.find((x) => x.uuid === uuid)
-    if (!e) return
+    if (!e) {
+      setFromRegistry([])
+      return
+    }
+    const derived: string[] = []
     setValues((cur) => {
       const next = { ...cur }
       for (const v of variables) {
-        const derived = fromEnterprise(v, e)
-        if (derived) next[v] = derived
+        const value = valueFromEnterprise(v, e)
+        if (value) {
+          next[v] = value
+          derived.push(v)
+        }
       }
       return next
     })
-    setPrefilled(true)
+    setFromRegistry(derived)
   }
+
+  const missing = variables.filter((v) => !(values[v] ?? '').trim())
 
   async function onSubmit(ev: React.FormEvent) {
     ev.preventDefault()
@@ -126,17 +104,14 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
       })
       const done = await pollContractJob(job.uuid)
       if (done.status === 'failed') {
-        if ((done.error || '').includes('missing_variables')) setError(t('templates.generate.missingVariables'))
-        else setError(t('templates.generate.error'))
+        setError(errorMessage(t, new Error(done.error || ''), 'templates.generate.error'))
         return
       }
       toast.success(t('templates.generate.success'))
       onGenerated()
       onClose()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : ''
-      if (msg.includes('missing_variables')) setError(t('templates.generate.missingVariables'))
-      else setError(t('templates.generate.error'))
+      setError(errorMessage(t, err, 'templates.generate.error'))
     } finally {
       setSubmitting(false)
     }
@@ -147,22 +122,30 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-lg overflow-hidden rounded-xl bg-background shadow-xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="generate-contract-title"
+        className="w-full max-w-lg overflow-hidden rounded-xl bg-background shadow-xl"
+      >
         <div className="flex items-center gap-3 bg-primary px-5 py-4 text-primary-foreground">
-          <button type="button" onClick={onClose} aria-label="voltar" className="shrink-0">
+          <button type="button" onClick={onClose} aria-label={t('common.back')} className="shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold">{t('templates.generate.title')}</h2>
-            <p className="truncate text-xs opacity-80">{t('templates.generate.fromTemplate', { name: template.name })}</p>
+            <h2 id="generate-contract-title" className="text-lg font-semibold">
+              {t('templates.generate.title')}
+            </h2>
+            <p className="truncate text-xs opacity-80">
+              {t('templates.generate.fromTemplate', { name: template.name })}
+            </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="fechar" className="ml-auto shrink-0">
+          <button type="button" onClick={onClose} aria-label={t('common.close')} className="ml-auto shrink-0">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4 px-5 py-5">
-          {}
           {enterprises.length > 0 && (
             <div className="grid gap-1.5">
               <Label htmlFor="from-enterprise">{t('templates.generate.enterprise')}</Label>
@@ -171,7 +154,7 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
                 value={enterpriseUuid}
                 onChange={(e) => {
                   setEnterpriseUuid(e.target.value)
-                  if (e.target.value) applyEnterprise(e.target.value)
+                  applyEnterprise(e.target.value)
                 }}
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
@@ -187,25 +170,62 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
               ) : (
                 <p className="text-xs text-muted-foreground">{t('templates.generate.enterpriseHint')}</p>
               )}
-              {prefilled && (
-                <p className="text-xs text-green-700">{t('templates.generate.prefilled')}</p>
-              )}
             </div>
           )}
 
-          {}
           {variables.length === 0 ? (
             <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
               {t('templates.generate.noVariables')}
             </p>
           ) : (
             <div className="grid gap-3">
-              {variables.map((v) => (
-                <div key={v} className="grid gap-1.5">
-                  <Label htmlFor={`var-${v}`} className="font-mono text-xs">{`{{${v}}}`}</Label>
-                  <Input id={`var-${v}`} value={values[v] ?? ''} onChange={(e) => set(v, e.target.value)} />
-                </div>
-              ))}
+              {variables.map((v) => {
+                const filled = fromRegistry.includes(v)
+                return (
+                  <div key={v} className="grid gap-1.5">
+                    <Label htmlFor={`var-${v}`}>{labelFor(v)}</Label>
+                    <Input
+                      id={`var-${v}`}
+                      value={values[v] ?? ''}
+                      aria-describedby={filled ? `var-${v}-origin` : undefined}
+                      onChange={(e) => set(v, e.target.value)}
+                    />
+                    {filled && (
+                      <p
+                        id={`var-${v}-origin`}
+                        className="flex items-center gap-1 text-xs text-green-700"
+                      >
+                        <CheckCircle2 className="h-3 w-3 shrink-0" />
+                        {t('templates.generate.fromRegistry')}
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {variables.length > 0 && (
+            <div className="rounded-md border bg-muted/40 px-3 py-2">
+              <p className="text-xs font-semibold">{t('templates.generate.reviewTitle')}</p>
+              <dl className="mt-1.5 grid gap-1 text-xs">
+                {variables.map((v) => {
+                  const value = (values[v] ?? '').trim()
+                  return (
+                    <div key={v} className="flex gap-2">
+                      <dt className="shrink-0 text-muted-foreground">{labelFor(v)}:</dt>
+                      <dd className={value ? 'min-w-0 break-words' : 'text-destructive'}>
+                        {value || t('templates.generate.emptyValue')}
+                      </dd>
+                    </div>
+                  )
+                })}
+              </dl>
+              {missing.length > 0 && (
+                <p className="mt-2 text-xs text-destructive">
+                  {t('templates.generate.missingCount', { count: missing.length })}
+                </p>
+              )}
             </div>
           )}
 
@@ -221,7 +241,9 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
           </label>
 
           {error && (
-            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+            <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
           )}
           <Button type="submit" className="w-full" disabled={submitting}>
             {submitting ? t('templates.generate.submitting') : t('templates.generate.submit')}

@@ -2,6 +2,7 @@
 
 const crud = require('../crud');
 const audit = require('./audit');
+const lifecycle = require('./lifecycle');
 
 const SYSTEM_USER = 'system:app';
 
@@ -13,6 +14,22 @@ class HttpError extends Error {
 }
 
 const onlyDigits = (v) => String(v || '').replace(/\D/g, '');
+
+const MINOR_WORDS = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'em', 'no', 'na', 'nos', 'nas']);
+
+function titleCase(value) {
+  const s = String(value || '').trim().replace(/\s+/g, ' ');
+  if (!s) return null;
+  if (/[a-z\u00e0-\u00fc]/.test(s)) return s;
+  return s
+    .split(' ')
+    .map((word, i) => {
+      const lower = word.toLowerCase();
+      if (i > 0 && MINOR_WORDS.has(lower)) return lower;
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(' ');
+}
 
 function isValidCnpj(rawCnpj) {
   const c = onlyDigits(rawCnpj);
@@ -60,12 +77,12 @@ async function lookupCnpj(user, rawCnpj) {
     cnpj,
     razao_social: d.razao_social || null,
     nome_fantasia: d.nome_fantasia || null,
-    street: d.logradouro || null,
-    number: d.numero || null,
-    neighborhood: d.bairro || null,
-    city: d.municipio || null,
-    state: d.uf || null,
-    zip_code: d.cep || null,
+    street: titleCase(d.logradouro),
+    number: String(d.numero || '').trim() || null,
+    neighborhood: titleCase(d.bairro),
+    city: titleCase(d.municipio),
+    state: String(d.uf || '').trim().toUpperCase() || null,
+    zip_code: onlyDigits(d.cep) || null,
     phone_number: d.ddd_telefone_1 || null,
     already_registered: !!existing
   };
@@ -298,8 +315,12 @@ async function listAllSelectable(user) {
 
 const ENTERPRISE_STATUSES = new Set(['pending', 'active', 'suspended', 'inactive']);
 
-async function paginateWithContracts(actor, where, page) {
+const BY_NAME = [{ column: 'name', direction: 'ASC' }];
+const OLDEST_FIRST = [{ column: 'insert_date', direction: 'ASC' }];
+
+async function paginateWithContracts(actor, where, page, cidadeAlvo = '', orderBy = BY_NAME) {
   const offset = (page - 1) * PAGE_SIZE;
+  const filtraCidade = Boolean(cidadeAlvo);
 
   const [institutions, rows] = await Promise.all([
     crud.list(
@@ -311,21 +332,33 @@ async function paginateWithContracts(actor, where, page) {
     crud.list(
       'enterprise',
       {
-        select: ['id', ...CATALOG_FIELDS, 'cnpj', 'contact_email'],
+        select: ['id', ...CATALOG_FIELDS, 'cnpj', 'contact_email', 'insert_date'],
         where,
-        orderBy: [{ column: 'name', direction: 'ASC' }],
-        limit: PAGE_SIZE + 1,
-        offset
+        orderBy,
+        ...(filtraCidade ? {} : { limit: PAGE_SIZE + 1, offset })
       },
       null,
       actor
     )
   ]);
 
-  const hasMore = rows.length > PAGE_SIZE;
-  const pageRows = hasMore ? rows.slice(0, PAGE_SIZE) : rows;
-
   const byId = new Map(institutions.map((i) => [i.id, i]));
+
+  const elegiveis = filtraCidade
+    ? rows.filter((e) => {
+        const inst = e.institution_id != null ? byId.get(e.institution_id) : null;
+        return normalizeCity(inst?.city || e.city) === normalizeCity(cidadeAlvo);
+      })
+    : rows;
+
+  const hasMore = filtraCidade
+    ? elegiveis.length > offset + PAGE_SIZE
+    : elegiveis.length > PAGE_SIZE;
+
+  const pageRows = filtraCidade
+    ? elegiveis.slice(offset, offset + PAGE_SIZE)
+    : elegiveis.slice(0, PAGE_SIZE);
+
   const contracts = await contractsByEnterprise(actor, pageRows.map((e) => e.id));
 
   const items = pageRows.map((e) => {
@@ -346,16 +379,16 @@ function buildManageWhere(base, opts) {
   const where = { ...base };
   const search = typeof opts.search === 'string' ? opts.search.trim() : '';
   if (search) where.name = { op: 'ilike', value: `%${search}%` };
-  const city = typeof opts.city === 'string' ? opts.city.trim() : '';
-  if (city) where.city = city;
   return where;
 }
+
+const cidadeDe = (opts) => (typeof opts.city === 'string' ? opts.city.trim() : '');
 
 async function listPending(user, opts = {}) {
   const actor = user || SYSTEM_USER;
   const page = Math.max(1, Math.floor(Number(opts.page)) || 1);
   const where = buildManageWhere({ active: true, status: 'pending' }, { search: opts.search });
-  return paginateWithContracts(actor, where, page);
+  return paginateWithContracts(actor, where, page, '', OLDEST_FIRST);
 }
 
 async function listManage(user, opts = {}) {
@@ -364,13 +397,23 @@ async function listManage(user, opts = {}) {
   const where = buildManageWhere({ active: true }, opts);
   const status = typeof opts.status === 'string' ? opts.status.trim() : '';
   if (status && ENTERPRISE_STATUSES.has(status)) where.status = status;
-  return paginateWithContracts(actor, where, page);
+  return paginateWithContracts(actor, where, page, cidadeDe(opts));
 }
 
-async function updateStatus(user, uuid, status, requestId) {
+const REASON_REQUIRED_FOR = new Set(['inactive']);
+const REASON_MIN_LENGTH = 5;
+const REASON_MAX_LENGTH = 500;
+
+const normalizeReason = (raw) =>
+  (typeof raw === 'string' ? raw : '').trim().replace(/\s+/g, ' ');
+
+async function updateStatus(user, uuid, status, requestId, rawReason) {
   const actor = user || SYSTEM_USER;
   if (!uuid) throw new HttpError(400, 'uuid_required');
   if (!ENTERPRISE_STATUSES.has(status)) throw new HttpError(400, 'invalid_status');
+
+  const reason = normalizeReason(rawReason);
+  if (reason.length > REASON_MAX_LENGTH) throw new HttpError(400, 'reason_too_long');
 
   const current = await crud.read(
     'enterprise',
@@ -380,6 +423,13 @@ async function updateStatus(user, uuid, status, requestId) {
   );
   if (!current) throw new HttpError(404, 'enterprise_not_found');
 
+  lifecycle.assertTransition('enterprise', current.status, status);
+
+  const changing = current.status !== status;
+  if (changing && REASON_REQUIRED_FOR.has(status) && reason.length < REASON_MIN_LENGTH) {
+    throw new HttpError(400, 'reason_required');
+  }
+
   const rows = await crud.update(
     'enterprise',
     { status },
@@ -388,11 +438,11 @@ async function updateStatus(user, uuid, status, requestId) {
   );
   if (!rows[0]) throw new HttpError(404, 'enterprise_not_found');
 
-  if (current.status !== status) {
+  if (changing) {
     await audit.record(user, 'enterprise.status', {
       entity: 'enterprise',
       ref: current.name,
-      detail: { uuid, from: current.status, to: status },
+      detail: { uuid, from: current.status, to: status, reason: reason || null },
       requestId
     });
   }
