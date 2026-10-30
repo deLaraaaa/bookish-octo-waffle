@@ -15,6 +15,14 @@ type Props = {
   onGenerated: () => void
 }
 
+const MESES_PADRAO = 12
+
+function defaultDueDate(): string {
+  const d = new Date()
+  d.setMonth(d.getMonth() + MESES_PADRAO)
+  return d.toISOString().slice(0, 10)
+}
+
 export function GenerateContractModal({ template, onClose, onGenerated }: Props) {
   const { t } = useTranslation()
   const open = template !== null
@@ -23,6 +31,7 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
   const [values, setValues] = useState<Record<string, string>>({})
   const [fromRegistry, setFromRegistry] = useState<string[]>([])
   const [outName, setOutName] = useState('')
+  const [dueDate, setDueDate] = useState('')
   const [asPdf, setAsPdf] = useState(true)
   const [enterprises, setEnterprises] = useState<EnterpriseOption[]>([])
   const [enterpriseUuid, setEnterpriseUuid] = useState('')
@@ -42,6 +51,7 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
     setValues(Object.fromEntries(variables.map((v) => [v, ''])))
     setFromRegistry([])
     setOutName(template.name.replace(/\.docx$/i, ''))
+    setDueDate(defaultDueDate())
     setAsPdf(true)
     setEnterpriseUuid('')
     setError(null)
@@ -101,6 +111,7 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
         outName: outName.trim(),
         asPdf,
         enterpriseUuid: enterpriseUuid || undefined,
+        dueDate: dueDate || undefined,
       })
       const done = await pollContractJob(job.uuid)
       if (done.status === 'failed') {
@@ -233,6 +244,17 @@ export function GenerateContractModal({ template, onClose, onGenerated }: Props)
             <Label htmlFor="out-name">{t('templates.generate.outName')}</Label>
             <Input id="out-name" value={outName} onChange={(e) => setOutName(e.target.value)} />
             <p className="text-xs text-muted-foreground">{t('templates.generate.outNameHint')}</p>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="due-date">{t('templates.generate.dueDate')}</Label>
+            <Input
+              id="due-date"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">{t('templates.generate.dueDateHint')}</p>
           </div>
 
           <label className="flex items-center gap-2 text-sm">

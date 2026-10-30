@@ -405,7 +405,9 @@
       "reviewTitle": "Review before generating",
       "emptyValue": "not filled in",
       "missingCount_one": "{{count}} field is still empty.",
-      "missingCount_other": "{{count}} fields are still empty."
+      "missingCount_other": "{{count}} fields are still empty.",
+      "dueDate": "Contract expiry",
+      "dueDateHint": "Defaults to 12 months. Managers are alerted 3 months, 1 month and 1 week ahead."
     },
     "link": {
       "title": "Link contract",
@@ -467,6 +469,23 @@
       "socio": "Partner",
       "instituicao": "Institution",
       "curso": "Program"
+    }
+  },
+  "notifications": {
+    "title": "Expiry alerts",
+    "withUnread_one": "Expiry alerts, {{count}} unread",
+    "withUnread_other": "Expiry alerts, {{count}} unread",
+    "markAll": "Mark all as read",
+    "empty": "No contracts approaching expiry.",
+    "error": "Could not load the alerts.",
+    "unnamed": "Contract with no linked company",
+    "dueOn": "due {{date}}",
+    "inDays_one": "{{count}} day",
+    "inDays_other": "{{count}} days",
+    "milestone": {
+      "3_meses": "Expires in 3 months",
+      "1_mes": "Expires in 1 month",
+      "1_semana": "Expires in 1 week"
     }
   }
 }

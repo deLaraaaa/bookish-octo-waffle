@@ -130,14 +130,14 @@ router.get('/templates', async (req, res) => {
 
 router.post('/contracts', async (req, res) => {
   try {
-    const { templateUuid, values, outName, asPdf, enterpriseUuid } = req.body || {};
+    const { templateUuid, values, outName, asPdf, enterpriseUuid, dueDate } = req.body || {};
     if (!templateUuid || !outName) return res.status(400).json({ error: 'templateUuid_and_outName_required' });
 
     const tpl = await crud.read('template', { where: { uuid: templateUuid, active: true } }, null, actor(req));
     if (!tpl) return res.status(404).json({ error: 'template_not_found' });
 
     const job = await contractJobs.enqueue(actor(req), req.user.email, {
-      templateUuid, values, outName, asPdf, enterpriseUuid
+      templateUuid, values, outName, asPdf, enterpriseUuid, dueDate
     });
     await audit.record(req.user, 'contract.generate', {
       entity: 'contract_job',
@@ -198,6 +198,15 @@ router.patch('/contracts/status', async (req, res) => {
     });
     res.json(result);
   } catch (err) { fail(res, err); }
+});
+
+router.patch('/contracts/:documentUuid/due-date', async (req, res) => {
+  try {
+    const data = await contracts.setDueDate(req.user, req.params.documentUuid, (req.body || {}).dueDate);
+    res.send(data);
+  } catch (err) {
+    fail(res, err);
+  }
 });
 
 router.patch('/contracts/:documentUuid/status', async (req, res) => {

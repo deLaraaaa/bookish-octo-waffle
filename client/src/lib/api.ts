@@ -215,6 +215,7 @@ type EnqueueContractInput = {
   outName: string
   asPdf: boolean
   enterpriseUuid?: string
+  dueDate?: string
 }
 
 export async function enqueueContract(input: EnqueueContractInput): Promise<ContractJob> {
@@ -373,4 +374,36 @@ export async function viewFile(path: string): Promise<void> {
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank', 'noopener')
   setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
+export type NotificationMilestone = '3_meses' | '1_mes' | '1_semana'
+
+export type ContractNotification = {
+  uuid: string
+  milestone: NotificationMilestone
+  due_date: string
+  insert_date: string
+  document_uuid: string | null
+  document_name: string | null
+  enterprise_uuid: string | null
+  enterprise_name: string | null
+  read: boolean
+}
+
+export type NotificationList = {
+  items: ContractNotification[]
+  unread: number
+}
+
+export function fetchNotifications(unreadOnly = false): Promise<NotificationList> {
+  const qs = unreadOnly ? '?unread=true' : ''
+  return api<NotificationList>(`/notifications${qs}`, { auth: true })
+}
+
+export function markNotificationRead(uuid: string): Promise<{ uuid: string; read: boolean }> {
+  return api(`/notifications/${uuid}/read`, { method: 'POST', auth: true })
+}
+
+export function markAllNotificationsRead(): Promise<{ marked: number }> {
+  return api('/notifications/read-all', { method: 'POST', auth: true })
 }

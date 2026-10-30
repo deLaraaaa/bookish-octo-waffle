@@ -35,7 +35,22 @@ function signatureStatusFor(docStatus) {
   }
 }
 
-async function newDocument(actor, name, fileResourceId) {
+const DEFAULT_TERM_MONTHS = Number(process.env.CONTRACT_TERM_MONTHS || 12);
+
+function defaultDueDate(from = new Date()) {
+  const d = new Date(from);
+  d.setMonth(d.getMonth() + DEFAULT_TERM_MONTHS);
+  return d;
+}
+
+function parseDueDate(value) {
+  if (value === undefined || value === null || value === '') return defaultDueDate();
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) throw new HttpError(400, 'invalid_due_date');
+  return d;
+}
+
+async function newDocument(actor, name, fileResourceId, dueDate) {
   const sig = await crud.create(
     'signature',
     { status: 'pending_submission' },
@@ -44,10 +59,30 @@ async function newDocument(actor, name, fileResourceId) {
   );
   return crud.create(
     'document',
-    { name: name || 'Contrato', status: 'draft', file_resource_id: fileResourceId, signature_id: sig.id },
-    { returning: ['id', 'uuid', 'status'] },
+    {
+      name: name || 'Contrato',
+      status: 'draft',
+      file_resource_id: fileResourceId,
+      signature_id: sig.id,
+      due_date: parseDueDate(dueDate)
+    },
+    { returning: ['id', 'uuid', 'status', 'due_date'] },
     actor
   );
+}
+
+async function setDueDate(actor, documentUuid, dueDate) {
+  if (!documentUuid) throw new HttpError(400, 'uuid_required');
+  const due = parseDueDate(dueDate);
+
+  const rows = await crud.update(
+    'document',
+    { due_date: due },
+    { where: { uuid: documentUuid }, returning: ['uuid', 'due_date'] },
+    actor
+  );
+  if (!rows[0]) throw new HttpError(404, 'document_not_found');
+  return rows[0];
 }
 
 async function syncSignature(actor, documentUuid) {
@@ -82,7 +117,7 @@ async function syncSignature(actor, documentUuid) {
   }
 }
 
-async function ensureDocument(actor, itemId, name) {
+async function ensureDocument(actor, itemId, name, dueDate) {
   const fr = await crud.read(
     'file_resource',
     { select: ['id'], where: { active: true, file_path: itemRef(itemId) } },
@@ -106,16 +141,16 @@ async function ensureDocument(actor, itemId, name) {
     { returning: ['id'] },
     actor
   );
-  return newDocument(actor, name, newFr.id);
+  return newDocument(actor, name, newFr.id, dueDate);
 }
 
-async function linkToEnterprise(actor, { enterpriseUuid, itemId, name }) {
+async function linkToEnterprise(actor, { enterpriseUuid, itemId, name, dueDate }) {
   if (!enterpriseUuid || !itemId) throw new HttpError(400, 'enterpriseUuid_and_itemId_required');
 
   const enterprise = await crud.read('enterprise', { select: ['id'], where: { uuid: enterpriseUuid } }, null, actor);
   if (!enterprise) throw new HttpError(404, 'enterprise_not_found');
 
-  const doc = await ensureDocument(actor, itemId, name);
+  const doc = await ensureDocument(actor, itemId, name, dueDate);
 
   const existingLink = await crud.read(
     'enterprise_document',
@@ -227,4 +262,15 @@ async function listGenerated(token, actor) {
   });
 }
 
-module.exports = { HttpError, signatureStatusFor, ensureDocument, syncSignature, linkToEnterprise, setStatusByItem, listUnlinked, listGenerated };
+module.exports = {
+  HttpError,
+  signatureStatusFor,
+  ensureDocument,
+  syncSignature,
+  linkToEnterprise,
+  setStatusByItem,
+  setDueDate,
+  defaultDueDate,
+  listUnlinked,
+  listGenerated
+};

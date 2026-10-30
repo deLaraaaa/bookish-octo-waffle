@@ -405,7 +405,9 @@
       "reviewTitle": "Confira antes de gerar",
       "emptyValue": "não preenchido",
       "missingCount_one": "{{count}} campo ainda sem preenchimento.",
-      "missingCount_other": "{{count}} campos ainda sem preenchimento."
+      "missingCount_other": "{{count}} campos ainda sem preenchimento.",
+      "dueDate": "Vencimento do contrato",
+      "dueDateHint": "Preenchido com 12 meses por padrão. A gestão é avisada 3 meses, 1 mês e 1 semana antes."
     },
     "link": {
       "title": "Vincular contrato",
@@ -467,6 +469,23 @@
       "socio": "Sócio",
       "instituicao": "Instituição",
       "curso": "Curso"
+    }
+  },
+  "notifications": {
+    "title": "Avisos de vencimento",
+    "withUnread_one": "Avisos de vencimento, {{count}} não lido",
+    "withUnread_other": "Avisos de vencimento, {{count}} não lidos",
+    "markAll": "Marcar todos como lidos",
+    "empty": "Nenhum contrato se aproximando do vencimento.",
+    "error": "Não foi possível carregar os avisos.",
+    "unnamed": "Contrato sem empresa vinculada",
+    "dueOn": "vence em {{date}}",
+    "inDays_one": "{{count}} dia",
+    "inDays_other": "{{count}} dias",
+    "milestone": {
+      "3_meses": "Vence em 3 meses",
+      "1_mes": "Vence em 1 mês",
+      "1_semana": "Vence em 1 semana"
     }
   }
 }
