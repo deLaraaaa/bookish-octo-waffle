@@ -48,7 +48,7 @@ jobs:
   imagens:
     name: Construir e publicar imagens
     needs: decidir
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, oracle]
     permissions:
       contents: read
       packages: write
@@ -72,6 +72,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          platforms: linux/arm64
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ steps.repo.outputs.nome }}/api:${{ needs.decidir.outputs.tag }}
@@ -84,6 +85,7 @@ jobs:
         with:
           context: ./client
           file: ./client/Dockerfile
+          platforms: linux/arm64
           push: true
           build-args: |
             VITE_API_URL=/api
