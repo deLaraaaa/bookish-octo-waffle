@@ -101,14 +101,19 @@ export function MyEnterpriseRow({
 
   return (
     <li className="overflow-hidden rounded-lg border bg-background">
-      <div className={cn('flex items-center', select && 'pl-4')}>
+      <div
+        className={cn(
+          'flex items-center transition-colors hover:bg-muted/50',
+          select && 'pl-4'
+        )}
+      >
         {select}
         <button
           type="button"
           onClick={onToggle}
           aria-expanded={open}
           className={cn(
-            'flex w-full items-center justify-between gap-3 py-3 text-left transition-colors hover:bg-muted/50',
+            'flex w-full items-center justify-between gap-3 py-3 text-left',
             select ? 'pl-3 pr-4' : 'px-4'
           )}
         >
@@ -116,7 +121,7 @@ export function MyEnterpriseRow({
           <p className="truncate font-medium">{e.name}</p>
           <p className="truncate text-sm text-muted-foreground">{address || na}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {meta}
           {badge && (
             <span
@@ -129,7 +134,9 @@ export function MyEnterpriseRow({
             </span>
           )}
           <span className="hidden text-xs text-muted-foreground sm:inline">
-            {t('home.mine.contractCount', { count: contracts.length })}
+            {contracts.length === 0
+              ? t('home.mine.contractCountZero')
+              : t('home.mine.contractCount', { count: contracts.length })}
           </span>
           <ChevronRight
             className={cn(

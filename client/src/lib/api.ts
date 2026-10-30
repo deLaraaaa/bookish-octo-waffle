@@ -374,3 +374,41 @@ export async function viewFile(path: string): Promise<void> {
   window.open(url, '_blank', 'noopener')
   setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
+
+function nomeComData(prefixo: string): string {
+  return `${prefixo}-${new Date().toISOString().slice(0, 10)}.xlsx`
+}
+
+export function exportCatalog(filtros: { search?: string; city?: string } = {}): Promise<void> {
+  const qs = new URLSearchParams()
+  if (filtros.search) qs.set('search', filtros.search)
+  if (filtros.city) qs.set('city', filtros.city)
+  const sufixo = qs.toString() ? `?${qs}` : ''
+  return downloadFile(`/enterprises/export${sufixo}`, nomeComData('empresas-parceiras'))
+}
+
+export function exportManage(
+  filtros: { search?: string; city?: string; status?: string } = {}
+): Promise<void> {
+  const qs = new URLSearchParams()
+  if (filtros.search) qs.set('search', filtros.search)
+  if (filtros.city) qs.set('city', filtros.city)
+  if (filtros.status) qs.set('status', filtros.status)
+  const sufixo = qs.toString() ? `?${qs}` : ''
+  return downloadFile(`/enterprises/manage/export${sufixo}`, nomeComData('gestao-parcerias'))
+}
+
+export type LifecycleMachines = Record<string, Record<string, string[]>>
+
+let lifecycleCache: LifecycleMachines | null = null
+
+export async function fetchLifecycle(): Promise<LifecycleMachines> {
+  if (lifecycleCache) return lifecycleCache
+  const d = await api<{ machines: LifecycleMachines }>('/lifecycle', { auth: true })
+  lifecycleCache = d.machines
+  return lifecycleCache
+}
+
+export function resetLifecycleCache(): void {
+  lifecycleCache = null
+}

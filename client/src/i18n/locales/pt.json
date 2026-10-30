@@ -156,7 +156,8 @@
       "noContracts": "Nenhum contrato cadastrado.",
       "signature": "Assinatura",
       "due": "Vigência até",
-      "loadError": "Não foi possível carregar suas empresas."
+      "loadError": "Não foi possível carregar suas empresas.",
+      "contractCountZero": "Sem contratos"
     },
     "form": {
       "title": "Cadastrar empresa",
@@ -468,5 +469,13 @@
       "instituicao": "Instituição",
       "curso": "Curso"
     }
+  },
+  "export": {
+    "label": "Exportar",
+    "catalog": "Exportar empresas",
+    "manage": "Exportar para Excel",
+    "working": "Gerando…",
+    "done": "Planilha gerada.",
+    "error": "Não foi possível gerar a planilha."
   }
 }

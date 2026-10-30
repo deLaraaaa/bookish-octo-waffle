@@ -11,12 +11,16 @@ import {
   type Institution,
   type MyEnterprise,
   type Paginated,
+  exportManage,
+  fetchLifecycle,
+  type LifecycleMachines,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { errorMessage } from '@/lib/errors'
 import { daysSince, waitTone, waitToneClasses } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { ExportButton } from '@/components/export-button'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LanguageSwitcher } from '@/components/language-switcher'
@@ -25,7 +29,6 @@ import { TemplatesContracts } from '@/components/templates-contracts'
 import { LinkContractModal } from '@/components/link-contract-modal'
 import { Logo } from '@/style'
 
-const DOC_STATUSES = ['draft', 'pending', 'signed', 'refused', 'expired', 'archived'] as const
 
 type EnterpriseStatus = 'pending' | 'active' | 'suspended' | 'inactive'
 const STATUS_OPTIONS: EnterpriseStatus[] = ['pending', 'active', 'suspended', 'inactive']
@@ -48,6 +51,7 @@ export default function Manage() {
   const [selected, setSelected] = useState<string[]>([])
   const [confirming, setConfirming] = useState<PendingAction | null>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
+  const [transicoes, setTransicoes] = useState<LifecycleMachines['document'] | null>(null)
 
   const [all, setAll] = useState<MyEnterprise[]>([])
   const [allLoading, setAllLoading] = useState(true)
@@ -115,6 +119,9 @@ export default function Manage() {
       }
     }
     loadCities()
+    fetchLifecycle()
+      .then((m) => setTransicoes(m.document ?? null))
+      .catch(() => setTransicoes(null))
     fetchAll('', 1, '', '')
     fetchPending('', 1)
   }, [])
@@ -140,6 +147,12 @@ export default function Manage() {
     } catch {
       toast.error(t('manage.contract.statusError'))
     }
+  }
+
+  function statusOptionsFor(atual: string): readonly string[] {
+    if (!transicoes) return [atual]
+    const destinos = transicoes[atual] ?? []
+    return [atual, ...destinos]
   }
 
   function contractControls(c: Contract) {
@@ -177,7 +190,7 @@ export default function Manage() {
           onChange={(e) => updateContractStatus(c.uuid, e.target.value)}
           className="h-7 rounded-md border border-input bg-background px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
-          {DOC_STATUSES.map((s) => (
+          {statusOptionsFor(c.status).map((s) => (
             <option key={s} value={s}>
               {t(`home.docStatus.${s}`)}
             </option>
@@ -406,7 +419,7 @@ export default function Manage() {
             </p>
           ) : (
             <>
-              <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border bg-background px-4 py-2">
+              <div className="mb-2 flex flex-wrap items-center gap-3 px-1">
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
@@ -414,7 +427,7 @@ export default function Manage() {
                     checked={selected.length === pending.length && pending.length > 0}
                     onChange={(ev) => setSelected(ev.target.checked ? pending.map((e) => e.uuid) : [])}
                   />
-                  {t('manage.pending.selectAll')}
+                  <span className="text-muted-foreground">{t('manage.pending.selectAll')}</span>
                 </label>
                 {selected.length > 0 && (
                   <>
@@ -471,9 +484,16 @@ export default function Manage() {
         </section>
 
         <section>
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold">{t('manage.all.title')}</h2>
-            <p className="text-sm text-muted-foreground">{t('manage.all.description')}</p>
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">{t('manage.all.title')}</h2>
+              <p className="text-sm text-muted-foreground">{t('manage.all.description')}</p>
+            </div>
+            <ExportButton
+              onExport={() => exportManage({ search: allSearch, city: allCity, status: allStatus })}
+              label={t('export.manage')}
+              className="shrink-0"
+            />
           </div>
 
           <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">

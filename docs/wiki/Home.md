@@ -10,6 +10,8 @@ Esta Wiki responde o **porquê**: como o sistema está organizado e que decisõe
 
 | Página | O que responde |
 |---|---|
+| [Requisitos funcionais](Requisitos-funcionais) | O que o sistema faz, por perfil, com o ponto no código |
+| [Casos de uso](Casos-de-uso) | Os três fluxos de negócio completos, do início ao fim |
 | [Arquitetura C4](Arquitetura-C4) | Quem usa, de que partes é feito e como as partes conversam |
 | [Modelo de dados](Modelo-de-Dados) | As 17 tabelas, seus vínculos e os estados de cada entidade |
 | [Referência da API](Referencia-da-API) | Todos os endpoints, quem pode chamar e o que devolvem |

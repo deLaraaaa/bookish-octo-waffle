@@ -156,7 +156,8 @@
       "noContracts": "No contracts registered.",
       "signature": "Signature",
       "due": "Valid until",
-      "loadError": "Could not load your companies."
+      "loadError": "Could not load your companies.",
+      "contractCountZero": "No contracts"
     },
     "form": {
       "title": "Register company",
@@ -468,5 +469,13 @@
       "instituicao": "Institution",
       "curso": "Program"
     }
+  },
+  "export": {
+    "label": "Export",
+    "catalog": "Export companies",
+    "manage": "Export to Excel",
+    "working": "Generating…",
+    "done": "Spreadsheet ready.",
+    "error": "Could not generate the spreadsheet."
   }
 }
