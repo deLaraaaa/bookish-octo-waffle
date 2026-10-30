@@ -1,0 +1,46 @@
+{
+	email {$ACME_EMAIL}
+}
+
+(seguranca) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+{$APP_HOST_PROD} {
+	import seguranca
+	encode gzip zstd
+
+	handle_path /api/* {
+		reverse_proxy api-prod:4000
+	}
+
+	handle {
+		reverse_proxy client-prod:80
+	}
+}
+
+{$APP_HOST_STAGING} {
+	import seguranca
+	encode gzip zstd
+
+	header X-Robots-Tag "noindex, nofollow"
+
+	handle_path /api/* {
+		reverse_proxy api-staging:4000
+	}
+
+	handle {
+		reverse_proxy client-staging:80
+	}
+}
+
+{$GRAFANA_HOST} {
+	import seguranca
+	reverse_proxy grafana:3000
+}

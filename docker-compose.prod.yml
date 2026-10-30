@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: tcc-${ENV_NAME}-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    restart: unless-stopped
+
+  migrate:
+    image: ${IMAGE_API}:${IMAGE_TAG}
+    container_name: tcc-${ENV_NAME}-migrate
+    command: npx knex --knexfile ./server/knex-config.js migrate:latest
+    env_file:
+      - .env.${ENV_NAME}
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: ${IMAGE_API}:${IMAGE_TAG}
+    container_name: tcc-${ENV_NAME}-api
+    env_file:
+      - .env.${ENV_NAME}
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PORT: 4000
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      default:
+      edge:
+        aliases:
+          - api-${ENV_NAME}
+    restart: unless-stopped
+
+  client:
+    image: ${IMAGE_CLIENT}:${IMAGE_TAG}
+    container_name: tcc-${ENV_NAME}-client
+    networks:
+      default:
+      edge:
+        aliases:
+          - client-${ENV_NAME}
+    restart: unless-stopped
+
+networks:
+  default:
+  edge:
+    external: true
+    name: tcc-edge
+
+volumes:
+  pg_data:

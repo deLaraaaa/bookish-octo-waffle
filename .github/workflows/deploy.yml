@@ -1,0 +1,149 @@
+name: Deploy
+
+on:
+  push:
+    branches: [staging]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: Ambiente de destino
+        required: true
+        type: choice
+        options: [staging, prod]
+      tag:
+        description: Tag da imagem a publicar (ex. v1.0.0 ou staging)
+        required: true
+        default: staging
+
+concurrency:
+  group: deploy-${{ github.event.inputs.ambiente || (github.event_name == 'release' && 'prod' || 'staging') }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  decidir:
+    name: Definir ambiente e tag
+    runs-on: ubuntu-latest
+    outputs:
+      ambiente: ${{ steps.calc.outputs.ambiente }}
+      tag: ${{ steps.calc.outputs.tag }}
+    steps:
+      - id: calc
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "ambiente=prod" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ambiente=${{ github.event.inputs.ambiente }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ambiente=staging" >> "$GITHUB_OUTPUT"
+            echo "tag=staging" >> "$GITHUB_OUTPUT"
+          fi
+
+  imagens:
+    name: Construir e publicar imagens
+    needs: decidir
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Imagem da API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/api:${{ needs.decidir.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ github.repository }}/api:${{ needs.decidir.outputs.ambiente }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Imagem do client
+        uses: docker/build-push-action@v6
+        with:
+          context: ./client
+          file: ./client/Dockerfile
+          push: true
+          build-args: |
+            VITE_API_URL=/api
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/client:${{ needs.decidir.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ github.repository }}/client:${{ needs.decidir.outputs.ambiente }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  publicar:
+    name: Publicar em ${{ needs.decidir.outputs.ambiente }}
+    needs: [decidir, imagens]
+    runs-on: [self-hosted, oracle]
+    environment: ${{ needs.decidir.outputs.ambiente }}
+    permissions:
+      contents: read
+      packages: read
+    env:
+      AMBIENTE: ${{ needs.decidir.outputs.ambiente }}
+      TAG: ${{ needs.decidir.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Autenticar no registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Carregar variáveis do ambiente
+        run: |
+          set -euo pipefail
+          test -f "/opt/tcc/.env.${AMBIENTE}" || { echo "/opt/tcc/.env.${AMBIENTE} não existe na VM"; exit 1; }
+          cp "/opt/tcc/.env.${AMBIENTE}" ".env.${AMBIENTE}"
+          sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${TAG}|" ".env.${AMBIENTE}"
+
+      - name: Garantir a rede de borda
+        run: |
+          docker network inspect tcc-edge >/dev/null 2>&1 || {
+            echo "rede tcc-edge ausente. Suba a stack de borda primeiro."
+            exit 1
+          }
+
+      - name: Puxar imagens
+        run: docker compose -p "tcc-${AMBIENTE}" --env-file ".env.${AMBIENTE}" -f docker-compose.prod.yml pull
+
+      - name: Aplicar migrations e subir
+        run: docker compose -p "tcc-${AMBIENTE}" --env-file ".env.${AMBIENTE}" -f docker-compose.prod.yml up -d --remove-orphans
+
+      - name: Conferir saúde da API
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if docker exec "tcc-${AMBIENTE}-api" node -e "fetch('http://127.0.0.1:4000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"; then
+              echo "API respondendo em ${AMBIENTE}"
+              exit 0
+            fi
+            sleep 4
+          done
+          echo "API não respondeu a tempo"
+          docker compose -p "tcc-${AMBIENTE}" --env-file ".env.${AMBIENTE}" -f docker-compose.prod.yml logs --tail 80 api
+          exit 1
+
+      - name: Limpar arquivo de variáveis do workspace
+        if: always()
+        run: rm -f ".env.${AMBIENTE}"
+
+      - name: Remover imagens antigas
+        if: success()
+        run: docker image prune -f
