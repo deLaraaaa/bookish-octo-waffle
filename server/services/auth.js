@@ -31,7 +31,7 @@ function emailDomainAllowed(email) {
 }
 
 function roleForDomain(domain) {
-  return String(domain).toLowerCase().endsWith('edu.br') ? 'TEACHER' : 'STUDENT';
+  return String(domain).toLowerCase().endsWith('edu.br') ? 'STUDENT' : 'TEACHER';
 }
 
 function frontendUrl(path, params = {}) {

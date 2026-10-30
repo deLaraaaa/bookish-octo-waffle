@@ -294,8 +294,8 @@ describe('resolução do papel no login', () => {
   })
 
   it.each([
-    ['catolicasc.edu.br', 'TEACHER'],
-    ['catolicasc.org.br', 'STUDENT']
+    ['catolicasc.edu.br', 'STUDENT'],
+    ['catolicasc.org.br', 'TEACHER']
   ])('sem papel nem convite, o domínio %s vira %s', async (dominio, esperado) => {
     leitura.identity = { ...IDENTIDADE, domain: dominio }
     update.mockResolvedValue([{ ...IDENTIDADE, domain: dominio }])
@@ -307,7 +307,7 @@ describe('resolução do papel no login', () => {
     leitura.person = { ...PESSOA, role_id: 99 }
     leitura.role = null
 
-    expect(await entrarComSessao()).toBe('TEACHER')
+    expect(await entrarComSessao()).toBe('STUDENT')
   })
 })
 
