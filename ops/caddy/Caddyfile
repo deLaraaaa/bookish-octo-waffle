@@ -25,6 +25,10 @@
 	}
 }
 
+www.{$APP_HOST_PROD} {
+	redir https://{$APP_HOST_PROD}{uri} permanent
+}
+
 {$APP_HOST_STAGING} {
 	import seguranca
 	encode gzip zstd
