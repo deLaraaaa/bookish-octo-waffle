@@ -6,6 +6,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    # Só no loopback da VM: acesso externo apenas via túnel SSH (pgAdmin).
+    ports:
+      - "127.0.0.1:${PG_HOST_PORT:?defina PG_HOST_PORT no .env do ambiente}:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:

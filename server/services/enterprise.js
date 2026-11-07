@@ -83,7 +83,7 @@ async function lookupCnpj(user, rawCnpj) {
     city: titleCase(d.municipio),
     state: String(d.uf || '').trim().toUpperCase() || null,
     zip_code: onlyDigits(d.cep) || null,
-    phone_number: d.ddd_telefone_1 || null,
+    phone_number: onlyDigits(d.ddd_telefone_1) || null,
     already_registered: !!existing
   };
 }
@@ -494,7 +494,7 @@ async function create(user, body, file, requestId) {
         cnpj,
         responsible_person: (body.contact_name || '').trim() || null,
         contact_email: (body.contact_email || '').trim() || null,
-        phone_number: (body.phone_number || '').trim() || null,
+        phone_number: onlyDigits(body.phone_number) || null,
         street: (body.street || '').trim() || null,
         number: (body.number || '').trim() || null,
         neighborhood: (body.neighborhood || '').trim() || null,
