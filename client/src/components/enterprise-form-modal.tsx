@@ -43,6 +43,14 @@ export function formatZip(value: string): string {
   return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d
 }
 
+export function formatPhone(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 11)
+  if (d.length <= 2) return d
+  const split = d.length > 10 ? 7 : 6
+  const head = `(${d.slice(0, 2)}) ${d.slice(2, split)}`
+  return d.length > split ? `${head}-${d.slice(split)}` : head
+}
+
 const CNPJ_ERRORS: CnpjState[] = ['notfound', 'invalid', 'duplicate', 'error']
 
 export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
@@ -104,7 +112,7 @@ export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
         city: d.city || '',
         state: d.state || '',
         zipCode: formatZip(d.zip_code || ''),
-        phoneNumber: d.phone_number || '',
+        phoneNumber: formatPhone(d.phone_number || ''),
       }))
       setNameError(false)
       if (d.already_registered) {
@@ -155,7 +163,7 @@ export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
       fd.append('cnpj', form.cnpj)
       fd.append('contact_name', form.contactName.trim())
       fd.append('contact_email', form.contactEmail.trim())
-      fd.append('phone_number', form.phoneNumber)
+      fd.append('phone_number', form.phoneNumber.replace(/\D/g, ''))
       fd.append('street', form.street.trim())
       fd.append('number', form.number.trim())
       fd.append('neighborhood', form.neighborhood.trim())
@@ -329,6 +337,18 @@ export function EnterpriseFormModal({ open, onClose, onCreated }: Props) {
                   autoComplete="email"
                   value={form.contactEmail}
                   onChange={(e) => set('contactEmail', e.target.value)}
+                />
+              </div>
+              <div className="grid gap-1.5 sm:col-span-2">
+                <Label htmlFor="phoneNumber">{t('home.form.contactPhone')}</Label>
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="(00) 00000-0000"
+                  value={form.phoneNumber}
+                  onChange={(e) => set('phoneNumber', formatPhone(e.target.value))}
                 />
               </div>
             </div>
