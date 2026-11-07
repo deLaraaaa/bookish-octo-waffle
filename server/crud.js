@@ -93,6 +93,7 @@ const SCHEMA = Object.freeze({
     'out_name',
     'as_pdf',
     'enterprise_uuid',
+    'due_date',
     'requested_by',
     'requested_by_email',
     'result',
@@ -130,6 +131,15 @@ const SCHEMA = Object.freeze({
     'signature_id',
     'file_resource_id'
   ],
+  contract_notification: [
+    'id',
+    'uuid',
+    'document_id',
+    'milestone',
+    'due_date',
+    'insert_date'
+  ],
+  contract_notification_read: ['id', 'notification_id', 'person_id', 'read_at'],
 
   enterprise: [
     'id',

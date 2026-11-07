@@ -19,7 +19,7 @@ class HttpError extends Error {
   }
 }
 
-async function enqueue(actor, email, { templateUuid, values, outName, asPdf, enterpriseUuid }) {
+async function enqueue(actor, email, { templateUuid, values, outName, asPdf, enterpriseUuid, dueDate }) {
   const row = await crud.create(
     'contract_job',
     {
