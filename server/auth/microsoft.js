@@ -2,7 +2,9 @@
 
 const TENANT = process.env.AZURE_TENANT_ID || 'common';
 const AUTHORITY = `https://login.microsoftonline.com/${TENANT}`;
-const SCOPE = 'openid profile email User.Read offline_access Files.ReadWrite Mail.Send';
+// Drive compartilhado exige Files.ReadWrite.All; sem ele basta o OneDrive próprio.
+const FILES_SCOPE = process.env.ONEDRIVE_DRIVE_ID ? 'Files.ReadWrite.All' : 'Files.ReadWrite';
+const SCOPE = `openid profile email User.Read offline_access ${FILES_SCOPE} Mail.Send`;
 
 function config() {
   return {

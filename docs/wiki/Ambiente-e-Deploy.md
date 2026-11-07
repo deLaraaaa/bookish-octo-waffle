@@ -31,10 +31,16 @@ A URI de redirecionamento é a causa mais comum de falha no login: ela difere po
 
 | Variável | Padrão |
 |---|---|
+| `ONEDRIVE_DRIVE_ID` | vazio (usa o OneDrive de cada usuário) |
 | `ONEDRIVE_BASE_FOLDER` | `Parcerias` |
 | `ONEDRIVE_TEMPLATES_FOLDER` | `Templates` |
 | `ONEDRIVE_CONTRACTS_FOLDER` | `Contratos` |
 | `ONEDRIVE_CHANCELAS_FOLDER` | `Chancelas` |
+
+Com `ONEDRIVE_DRIVE_ID` definido, todos os gestores leem e gravam no mesmo drive (id da biblioteca
+do SharePoint, via `GET /sites/{site}/drives`), e um contrato gerado por uma pessoa aparece para as
+outras. Todos os gestores precisam ter acesso de edição a essa biblioteca. O escopo passa a ser
+`Files.ReadWrite.All` (exige consentimento do admin do tenant) e cada gestor precisa entrar de novo.
 
 **Produção e homologação precisam de pastas diferentes.** Se apontarem para a mesma, um teste em
 homologação grava contrato no acervo real.

@@ -39,6 +39,15 @@ function ensureDocx(name) {
   return /\.docx$/i.test(name) ? name : `${name}.docx`;
 }
 
+async function listChildrenOrEmpty(token, folderPath) {
+  try {
+    return await graph.listChildren(token, folderPath);
+  } catch (err) {
+    if (err.status === 404) return [];
+    throw err;
+  }
+}
+
 async function importTemplate(token, name, buffer) {
   const vars = tpl.detectVariables(buffer);
   await ensureStructure(token);
@@ -48,7 +57,7 @@ async function importTemplate(token, name, buffer) {
 }
 
 async function listTemplates(token) {
-  const items = await graph.listChildren(token, templatesPath);
+  const items = await listChildrenOrEmpty(token, templatesPath);
   return items
     .filter((i) => i.file && /\.docx$/i.test(i.name))
     .map((i) => ({ id: i.id, name: i.name, size: i.size, modified: i.lastModifiedDateTime }));
@@ -77,7 +86,7 @@ async function exportContract(token, templateId, values, outName, { asPdf = fals
 }
 
 async function listContracts(token) {
-  const items = await graph.listChildren(token, contractsPath);
+  const items = await listChildrenOrEmpty(token, contractsPath);
   return items
     .filter((i) => i.file)
     .map((i) => ({ id: i.id, name: i.name, size: i.size, modified: i.lastModifiedDateTime }));

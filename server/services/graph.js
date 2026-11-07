@@ -2,6 +2,12 @@
 
 const GRAPH = 'https://graph.microsoft.com/v1.0';
 
+// Drive central compartilhado (ex.: biblioteca do SharePoint). Sem ele, cada
+// usuário usa o próprio OneDrive (/me/drive).
+const DRIVE = process.env.ONEDRIVE_DRIVE_ID
+  ? `/drives/${encodeURIComponent(process.env.ONEDRIVE_DRIVE_ID)}`
+  : '/me/drive';
+
 class GraphError extends Error {
   constructor(status, message, details) {
     super(message);
@@ -28,7 +34,7 @@ async function call(token, path, { method = 'GET', headers = {}, body, raw = fal
 async function getItemByPath(token, itemPath) {
   const at = itemPath ? `/root:/${encodePath(itemPath)}` : '/root';
   try {
-    return await call(token, `/me/drive${at}?$select=id,name,folder`);
+    return await call(token, `${DRIVE}${at}?$select=id,name,folder`);
   } catch (e) {
     if (e instanceof GraphError && e.status === 404) return null;
     throw e;
@@ -50,7 +56,7 @@ async function ensureFolder(token, parentPath, name) {
     '@microsoft.graph.conflictBehavior': 'fail'
   });
   const parent = parentPath ? `/root:/${encodePath(parentPath)}:` : '/root';
-  return call(token, `/me/drive${parent}/children`, {
+  return call(token, `${DRIVE}${parent}/children`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body
@@ -58,7 +64,7 @@ async function ensureFolder(token, parentPath, name) {
 }
 
 async function uploadFile(token, filePath, buffer, contentType) {
-  return call(token, `/me/drive/root:/${encodePath(filePath)}:/content`, {
+  return call(token, `${DRIVE}/root:/${encodePath(filePath)}:/content`, {
     method: 'PUT',
     headers: { 'Content-Type': contentType || 'application/octet-stream' },
     body: buffer
@@ -67,16 +73,16 @@ async function uploadFile(token, filePath, buffer, contentType) {
 
 async function listChildren(token, folderPath) {
   const at = folderPath ? `/root:/${encodePath(folderPath)}:` : '/root';
-  const data = await call(token, `/me/drive${at}/children?$select=id,name,size,lastModifiedDateTime,file`);
+  const data = await call(token, `${DRIVE}${at}/children?$select=id,name,size,lastModifiedDateTime,file`);
   return data.value || [];
 }
 
 async function downloadItem(token, itemId) {
-  return call(token, `/me/drive/items/${encodeURIComponent(itemId)}/content`, { raw: true });
+  return call(token, `${DRIVE}/items/${encodeURIComponent(itemId)}/content`, { raw: true });
 }
 
 async function itemToPdf(token, itemId) {
-  return call(token, `/me/drive/items/${encodeURIComponent(itemId)}/content?format=pdf`, { raw: true });
+  return call(token, `${DRIVE}/items/${encodeURIComponent(itemId)}/content?format=pdf`, { raw: true });
 }
 
 async function sendMail(token, { to, subject, text, html }) {
