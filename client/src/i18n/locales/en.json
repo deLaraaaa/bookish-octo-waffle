@@ -173,6 +173,7 @@
       "contact": "Company contact",
       "contactName": "Name",
       "contactEmail": "Email",
+      "contactPhone": "Phone",
       "contactHint": "Used only by staff to formalize the partnership.",
       "address": "Address",
       "street": "Street",
