@@ -11,6 +11,7 @@ const institutionRoutes = require('./routes/institutions');
 const enterpriseRoutes = require('./routes/enterprises');
 const adminRoutes = require('./routes/admin');
 const storageRoutes = require('./routes/storage');
+const notificationRoutes = require('./routes/notifications');
 const contractJobs = require('./services/contractJobs');
 const app = express();
 
@@ -32,6 +33,7 @@ app.use("/institutions", institutionRoutes);
 app.use("/enterprises", enterpriseRoutes);
 app.use("/admin", adminRoutes);
 app.use("/storage", storageRoutes);
+app.use("/notifications", notificationRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

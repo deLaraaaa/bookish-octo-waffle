@@ -24,6 +24,7 @@ import { ExportButton } from '@/components/export-button'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { NotificationBell } from '@/components/notification-bell'
 import { MyEnterpriseRow } from '@/components/enterprise-list'
 import { TemplatesContracts } from '@/components/templates-contracts'
 import { LinkContractModal } from '@/components/link-contract-modal'
@@ -342,6 +343,7 @@ export default function Manage() {
                 {t('manage.backToCatalog')}
               </Link>
             </Button>
+            <NotificationBell />
             <LanguageSwitcher />
             <Button variant="outline" size="sm" onClick={logout}>
               {t('home.logout')}

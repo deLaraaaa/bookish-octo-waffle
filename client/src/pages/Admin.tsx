@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { NotificationBell } from '@/components/notification-bell'
 import { Logo } from '@/style'
 
 const AUDIT_ACTIONS = [
@@ -72,6 +73,7 @@ export default function Admin() {
                 {t('manage.backToCatalog')}
               </Link>
             </Button>
+            <NotificationBell />
             <LanguageSwitcher />
             <Button variant="outline" size="sm" onClick={logout}>
               {t('home.logout')}
