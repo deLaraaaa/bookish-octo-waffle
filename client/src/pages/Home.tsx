@@ -10,6 +10,8 @@ import {
   type Paginated,
 } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { exportCatalog } from '@/lib/api'
+import { ExportButton } from '@/components/export-button'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LanguageSwitcher } from '@/components/language-switcher'
@@ -194,9 +196,15 @@ export default function Home() {
 
         {}
         <section>
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold">{t('home.catalog.title')}</h2>
-            <p className="text-sm text-muted-foreground">{t('home.catalog.description')}</p>
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">{t('home.catalog.title')}</h2>
+              <p className="text-sm text-muted-foreground">{t('home.catalog.description')}</p>
+            </div>
+            <ExportButton
+              onExport={() => exportCatalog({ search: appliedSearch, city })}
+              label={t('export.catalog')}
+            />
           </div>
 
           {}

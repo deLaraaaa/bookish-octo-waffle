@@ -104,6 +104,7 @@ const CATALOG_FIELDS = [
 ];
 
 const PAGE_SIZE = 10;
+const EXPORT_LIMIT = 5000;
 
 const normalizeCity = (s) =>
   String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
@@ -164,8 +165,11 @@ async function list(user, opts = {}) {
     });
   }
 
-  const hasMore = eligible.length > offset + PAGE_SIZE;
-  const pageRows = eligible.slice(offset, offset + PAGE_SIZE);
+  const exportAll = opts.all === true;
+  const hasMore = exportAll ? false : eligible.length > offset + PAGE_SIZE;
+  const pageRows = exportAll
+    ? eligible.slice(0, EXPORT_LIMIT)
+    : eligible.slice(offset, offset + PAGE_SIZE);
 
   const items = pageRows.map((e) => {
     const inst = e.institution_id != null ? byId.get(e.institution_id) : null;
@@ -318,7 +322,7 @@ const ENTERPRISE_STATUSES = new Set(['pending', 'active', 'suspended', 'inactive
 const BY_NAME = [{ column: 'name', direction: 'ASC' }];
 const OLDEST_FIRST = [{ column: 'insert_date', direction: 'ASC' }];
 
-async function paginateWithContracts(actor, where, page, cidadeAlvo = '', orderBy = BY_NAME) {
+async function paginateWithContracts(actor, where, page, cidadeAlvo = '', orderBy = BY_NAME, todos = false) {
   const offset = (page - 1) * PAGE_SIZE;
   const filtraCidade = Boolean(cidadeAlvo);
 
@@ -335,7 +339,7 @@ async function paginateWithContracts(actor, where, page, cidadeAlvo = '', orderB
         select: ['id', ...CATALOG_FIELDS, 'cnpj', 'contact_email', 'insert_date'],
         where,
         orderBy,
-        ...(filtraCidade ? {} : { limit: PAGE_SIZE + 1, offset })
+        ...(filtraCidade || todos ? {} : { limit: PAGE_SIZE + 1, offset })
       },
       null,
       actor
@@ -351,11 +355,15 @@ async function paginateWithContracts(actor, where, page, cidadeAlvo = '', orderB
       })
     : rows;
 
-  const hasMore = filtraCidade
+  const hasMore = todos
+    ? false
+    : filtraCidade
     ? elegiveis.length > offset + PAGE_SIZE
     : elegiveis.length > PAGE_SIZE;
 
-  const pageRows = filtraCidade
+  const pageRows = todos
+    ? elegiveis.slice(0, EXPORT_LIMIT)
+    : filtraCidade
     ? elegiveis.slice(offset, offset + PAGE_SIZE)
     : elegiveis.slice(0, PAGE_SIZE);
 
@@ -397,7 +405,7 @@ async function listManage(user, opts = {}) {
   const where = buildManageWhere({ active: true }, opts);
   const status = typeof opts.status === 'string' ? opts.status.trim() : '';
   if (status && ENTERPRISE_STATUSES.has(status)) where.status = status;
-  return paginateWithContracts(actor, where, page, cidadeDe(opts));
+  return paginateWithContracts(actor, where, page, cidadeDe(opts), BY_NAME, opts.all === true);
 }
 
 const REASON_REQUIRED_FOR = new Set(['inactive']);
@@ -547,6 +555,7 @@ async function create(user, body, file, requestId) {
 }
 
 module.exports = {
+  EXPORT_LIMIT,
   list,
   listMine,
   listPending,
