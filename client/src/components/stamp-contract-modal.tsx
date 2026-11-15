@@ -84,7 +84,8 @@ export function StampContractModal({ contract, onClose, onStamped }: Props) {
         await page.render({ canvasContext: ctx, viewport, canvas }).promise
         if (cancelled) return
         setCanvasSize({ w: viewport.width, h: viewport.height })
-      } catch {
+      } catch (err) {
+        console.error('stamp: falha ao abrir o PDF', err)
         if (!cancelled) toast.error(t('templates.stamp.error'))
       } finally {
         if (!cancelled) setLoadingPdf(false)
